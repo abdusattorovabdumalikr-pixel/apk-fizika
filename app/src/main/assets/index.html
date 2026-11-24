@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tebranma harakatlar — interaktiv fizika prezentatsiyasi</title>
+<style>
+/* ============================================================
+   TEBRANMA HARAKATLAR — dizayn tizimi
+   Qora / to'q ko'k / binafsha fon, elektr ko'k aksent, glassmorphism
+   ============================================================ */
+:root{
+  --bg0:#03040b; --bg1:#070b26; --bg2:#14073f;
+  --blue:#2f7bff; --blue2:#6aaeff; --violet:#8b5cf6; --violet2:#b79bff;
+  --cyan:#27d9ff; --pink:#ff6bd6; --amber:#ffc857; --green:#4ade80; --red:#ff5d73;
+  --txt:#e9efff; --mut:#98a6cf; --line:rgba(150,180,255,.18);
+  --sans:"Segoe UI Variable Display","Segoe UI","SF Pro Display","Inter","Helvetica Neue",Roboto,Arial,sans-serif;
+  --math:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",serif;
+  --mono:"Cascadia Mono","SF Mono",Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;color:var(--txt);font-family:var(--sans);
+  background:radial-gradient(120% 120% at 15% 0%,#12165a 0%,#070b26 45%,#03040b 100%);
+  -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;color:inherit}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;z-index:1;transform-origin:50% 50%}
+
+/* ---------- slaydlar ---------- */
+.slide{position:absolute;inset:0;padding:60px 96px 110px;opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateX(var(--tx,0px)) scale(.97);filter:blur(10px);
+  transition:opacity .6s ease,transform .8s cubic-bezier(.2,.8,.2,1),filter .6s ease,visibility 0s .8s}
+.slide.notrans{transition:none!important}
+.slide.active{opacity:1;visibility:visible;pointer-events:auto;transform:none;filter:none;
+  transition:opacity .7s ease .08s,transform .85s cubic-bezier(.2,.8,.2,1) .08s,filter .7s ease .08s,visibility 0s}
+.slide.leaving{visibility:visible}
+.slide [data-a]{opacity:0;transform:translateY(26px)}
+.slide.active [data-a]{opacity:1;transform:none;transition:opacity .8s ease calc(var(--d,0ms) + 220ms),transform .9s cubic-bezier(.2,.8,.2,1) calc(var(--d,0ms) + 220ms)}
+.slide.leaving [data-a]{opacity:1;transform:none}
+.step{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+.step.on,.slide.leaving .step,.show-all .step{opacity:1;transform:none}
+
+.hd{margin-bottom:22px}
+.kick{font-size:22px;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);font-weight:700;display:flex;align-items:center;gap:16px}
+.kick::before{content:"";width:54px;height:2px;background:linear-gradient(90deg,var(--cyan),transparent)}
+h2{font-size:62px;line-height:1.06;font-weight:800;letter-spacing:-.02em;margin-top:8px;padding-bottom:4px;
+  background:linear-gradient(90deg,#fff 0%,#b9d3ff 55%,var(--violet2) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.body{display:grid;grid-template-columns:var(--cols,620px 1fr);gap:32px;height:790px;align-items:stretch}
+.col{display:flex;flex-direction:column;gap:20px;min-height:0}
+
+/* ---------- shisha kartochkalar ---------- */
+.glass,.card{background:linear-gradient(145deg,rgba(255,255,255,.085),rgba(255,255,255,.025));
+  border:1px solid rgba(160,190,255,.2);border-radius:28px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 24px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.14)}
+.card{padding:26px 30px}
+.card.cv{padding:14px;display:flex;align-items:center;justify-content:center}
+.card.cv canvas{border-radius:18px;display:block;touch-action:none}
+.def{font-size:31px;line-height:1.45;color:#dbe6ff}
+.def b{color:#fff}
+.hl{color:var(--cyan);font-weight:600}
+.hv{color:var(--violet2);font-weight:600}
+.mini{font-size:22px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:700;margin-bottom:14px}
+.pt{display:flex;gap:18px;align-items:flex-start;font-size:28px;line-height:1.35;margin:12px 0;color:#dbe6ff}
+.pt .n{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:24px;
+  background:linear-gradient(135deg,var(--blue),var(--violet));box-shadow:0 0 22px rgba(47,123,255,.55);color:#fff}
+.note{font-size:23px;line-height:1.4;color:var(--mut);border-left:3px solid var(--blue);padding-left:16px}
+.note b{color:#dbe6ff}
+.chip{display:inline-block;font-size:20px;letter-spacing:.24em;font-weight:700;color:var(--cyan);padding:10px 20px;border-radius:99px;
+  border:1px solid rgba(39,217,255,.4);background:rgba(39,217,255,.08)}
+
+/* ---------- formulalar ---------- */
+.M,.fx{font-family:var(--math);font-style:normal}
+.M i,.fx i{font-style:italic}
+.fx{font-size:64px;line-height:1.25;color:#fff;text-shadow:0 0 30px rgba(47,123,255,.45);white-space:nowrap}
+.fx.md{font-size:50px}.fx.sm{font-size:40px}
+.fx sub,.fx sup,.M sub,.M sup{font-size:.55em;line-height:0}
+.fx .c1,.M .c1{color:var(--blue2)}.fx .c2,.M .c2{color:var(--violet2)}.fx .c3,.M .c3{color:var(--cyan)}.fx .c4,.M .c4{color:var(--pink)}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .12em;font-size:.92em;line-height:1.1}
+.frac>span:first-child{border-bottom:.06em solid currentColor;padding:0 .18em .06em}
+.frac>span:last-child{padding:.06em .18em 0}
+.rad{display:inline-flex;align-items:stretch;vertical-align:middle}
+.rad .rs{display:block;flex:none;overflow:hidden;text-indent:-100em;white-space:nowrap;width:.62em;align-self:stretch;margin:.04em -.02em 0 .04em;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 100' preserveAspectRatio='none'%3E%3Cpath d='M1 58 L9 52 L13 56 L26 93 L56 3 L60 3 L60 7 L58 7 L27 99 L23 99 L9 60 L3 63 Z' fill='black'/%3E%3C/svg%3E") no-repeat 0 0/100% 100%;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 100' preserveAspectRatio='none'%3E%3Cpath d='M1 58 L9 52 L13 56 L26 93 L56 3 L60 3 L60 7 L58 7 L27 99 L23 99 L9 60 L3 63 Z' fill='black'/%3E%3C/svg%3E") no-repeat 0 0/100% 100%}
+.rad .rb{border-top:.06em solid currentColor;padding:.08em .2em 0;margin-top:.04em}
+.fxbox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.fxbox .lab{font-size:21px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700}
+
+/* ---------- boshqaruv elementlari ---------- */
+.ctls{display:grid;gap:20px}
+.ctl .cl{display:flex;justify-content:space-between;align-items:baseline;font-size:25px;color:#cfdcff;margin-bottom:12px}
+.ctl .cl b{font-family:var(--mono);font-weight:600;color:#fff;font-size:26px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:99px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,var(--blue) var(--p,50%),rgba(255,255,255,.16) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;border-radius:50%;background:#fff;border:5px solid var(--blue);box-shadow:0 0 20px var(--blue)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:5px solid var(--blue);box-shadow:0 0 20px var(--blue)}
+input[type=range]::-moz-range-track{background:transparent}
+.btn{font-size:24px;font-weight:600;padding:14px 28px;border-radius:16px;border:1px solid rgba(110,170,255,.55);cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,rgba(47,123,255,.9),rgba(139,92,246,.85));box-shadow:0 0 28px rgba(47,123,255,.4);transition:transform .15s,box-shadow .2s,filter .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 0 38px rgba(47,123,255,.7);filter:brightness(1.12)}
+.btn:active{transform:translateY(1px)}
+.btn.alt{background:rgba(255,255,255,.07);border-color:var(--line);box-shadow:none}
+.btn.alt:hover{background:rgba(255,255,255,.14);box-shadow:none}
+.btn.on{background:linear-gradient(135deg,var(--cyan),var(--blue));color:#02122b;border-color:#bff2ff}
+.rowbtns{display:flex;flex-wrap:wrap;gap:12px}
+.seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:18px;padding:6px;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;font-size:22px;font-weight:600;padding:12px 16px;border-radius:13px;border:0;background:transparent;color:#bcd0ff;cursor:pointer;transition:.2s;white-space:nowrap}
+.seg button:hover{background:rgba(255,255,255,.08)}
+.seg button.on{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;box-shadow:0 0 22px rgba(47,123,255,.55)}
+.chk{display:inline-flex;align-items:center;gap:10px;font-size:23px;padding:10px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer}
+.chk input{width:22px;height:22px;accent-color:var(--blue)}
+.chk.c1{border-color:rgba(106,174,255,.5)}.chk.c2{border-color:rgba(183,155,255,.5)}.chk.c3{border-color:rgba(39,217,255,.5)}
+.ro-grid{display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:14px}
+.ro{padding:14px 18px;border-radius:18px;background:rgba(0,0,0,.28);border:1px solid var(--line)}
+.ro small{display:block;font-size:19px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}
+.ro b{font-family:var(--mono);font-size:30px;font-weight:600;color:#fff}
+.ro b em{font-style:normal;font-size:20px;color:var(--mut);margin-left:6px}
+.ro.hi b{color:var(--cyan)}
+.badge{display:inline-block;font-size:22px;font-weight:700;padding:8px 18px;border-radius:99px;background:rgba(74,222,128,.14);color:var(--green);border:1px solid rgba(74,222,128,.4)}
+.badge.warn{background:rgba(255,93,115,.14);color:var(--red);border-color:rgba(255,93,115,.5)}
+.badge.info{background:rgba(39,217,255,.12);color:var(--cyan);border-color:rgba(39,217,255,.4)}
+
+/* ---------- sarlavha slaydi ---------- */
+.s-title .title-grid{display:grid;grid-template-columns:1fr 920px;gap:40px;height:900px;align-items:center}
+.s-title h1{font-size:128px;line-height:.98;font-weight:900;letter-spacing:-.035em;margin:28px 0 28px;display:flex;flex-direction:column}
+.s-title h1 span{background:linear-gradient(90deg,#fff,#9cc4ff 50%,var(--violet2));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 40px rgba(47,123,255,.5))}
+.s-title .sub{font-size:32px;line-height:1.45;color:#b8c8f0;max-width:780px}
+.s-title .eq{margin-top:38px}.s-title .eq .M{font-size:58px;color:#fff;text-shadow:0 0 34px rgba(47,123,255,.7)}
+.s-title .hint{margin-top:46px;font-size:22px;color:var(--mut);letter-spacing:.04em}
+.s-title .tr{padding:20px;position:relative}
+.s-title .tr canvas{display:block;border-radius:18px}
+.s-title .cap{margin-top:12px;text-align:center;font-size:21px;color:var(--mut)}
+
+/* ---------- mundarija ---------- */
+.agenda{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;margin-top:6px;perspective:1400px}
+.ag{position:relative;height:238px;border-radius:26px;padding:22px 24px;cursor:pointer;overflow:hidden;
+  background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.025));border:1px solid rgba(160,190,255,.2);
+  box-shadow:0 20px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.14);transition:border-color .25s,box-shadow .25s;display:flex;flex-direction:column;justify-content:space-between}
+.ag:hover{border-color:var(--cyan);box-shadow:0 0 40px rgba(39,217,255,.35),0 20px 50px rgba(0,0,0,.4)}
+.ag .no{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--cyan);letter-spacing:.08em}
+.ag .t{font-size:28px;font-weight:700;line-height:1.18;color:#fff}
+.ag svg{position:absolute;right:-6px;top:12px;width:170px;height:70px;opacity:.9}
+.ag svg path{fill:none;stroke:url(#gw);stroke-width:3;stroke-linecap:round;stroke-dasharray:6 10;animation:dash 2.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-64}}
+
+/* ---------- turlari ---------- */
+.tcols{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;perspective:1400px;height:770px}
+.tcol{padding:26px 24px;display:flex;flex-direction:column;gap:18px;transition:box-shadow .3s}
+.tcol:hover{box-shadow:0 0 50px rgba(47,123,255,.3),0 24px 60px rgba(0,0,0,.42)}
+.tcol .th{font-size:21px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--cyan);min-height:56px}
+.ti{background:rgba(0,0,0,.26);border:1px solid var(--line);border-radius:20px;padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center}
+.ti b{font-size:30px;color:#fff}.ti span{font-size:21px;line-height:1.35;color:var(--mut)}
+.mw{width:100%;height:78px}
+.mw path{fill:none;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.slide.active .mw path{animation:draw 2.2s ease .6s forwards}
+.slide.leaving .mw path{stroke-dashoffset:0}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ---------- formulalar jamlanmasi ---------- */
+.fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;perspective:1600px}
+.flip{height:224px;cursor:pointer}
+.flip .in{position:relative;width:100%;height:100%;transition:transform .8s cubic-bezier(.2,.8,.2,1);transform-style:preserve-3d}
+.flip:hover .in,.flip.on .in{transform:rotateY(180deg)}
+.flip .f,.flip .b{position:absolute;inset:0;border-radius:26px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;
+  background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.025));border:1px solid rgba(160,190,255,.22);box-shadow:0 20px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.14)}
+.flip .b{transform:rotateY(180deg);background:linear-gradient(145deg,rgba(47,123,255,.3),rgba(139,92,246,.28));font-size:23px;line-height:1.35;color:#eaf1ff}
+.flip .b b{font-size:26px;color:#fff}
+.flip .f .lab{font-size:19px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.conv{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:end}
+.conv label{display:block;font-size:21px;color:var(--mut);margin-bottom:8px;letter-spacing:.06em}
+.conv input{width:100%;font-family:var(--mono);font-size:32px;font-weight:600;padding:12px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:#fff;outline:none;user-select:text;-webkit-user-select:text}
+.conv input:focus{border-color:var(--cyan);box-shadow:0 0 22px rgba(39,217,255,.3)}
+
+/* ---------- virtual laboratoriya ---------- */
+table.tb{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:22px}
+.tb th{font-weight:600;color:var(--mut);text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);font-size:19px;letter-spacing:.04em}
+.tb td{padding:8px 10px;text-align:right;color:#e4ecff;border-bottom:1px solid rgba(150,180,255,.08)}
+.tb th:first-child,.tb td:first-child{text-align:left}
+.tb tr.avg td{color:var(--cyan);font-weight:700;border-top:1px solid var(--line)}
+.tb td.l{text-align:left;font-family:var(--sans);font-size:23px}
+.msg{min-height:40px;font-size:25px;font-weight:600}
+.msg.ok{color:var(--green)}.msg.no{color:var(--red)}
+
+/* ---------- xususiyatlar ---------- */
+.pcols{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;height:790px}
+.pcard{display:flex;flex-direction:column;gap:16px;padding:24px 26px}
+.pcard h3{font-size:34px;font-weight:800;color:#fff}
+.pcard h3 small{display:block;font-size:20px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin-bottom:4px}
+.pcard canvas{width:100%;border-radius:16px;display:block}
+.pcard p{font-size:23px;line-height:1.4;color:#c9d6f8}
+
+/* ---------- viktorina ---------- */
+.qwrap{display:grid;grid-template-columns:1fr 440px;gap:36px;height:790px}
+.qq{font-size:40px;font-weight:700;line-height:1.28;color:#fff;margin-bottom:26px;min-height:150px}
+.qo{display:flex;flex-direction:column;gap:14px}
+.qo button{text-align:left;font-size:29px;padding:18px 24px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#e9efff;cursor:pointer;transition:.2s;display:flex;gap:18px;align-items:center}
+.qo button:hover:not(:disabled){background:rgba(47,123,255,.2);border-color:var(--blue2);transform:translateX(6px)}
+.qo button b{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-size:22px}
+.qo button.ok{background:rgba(74,222,128,.18);border-color:var(--green)}
+.qo button.ok b{background:var(--green);color:#022}
+.qo button.no{background:rgba(255,93,115,.16);border-color:var(--red)}
+.qo button.no b{background:var(--red);color:#fff}
+.qfb{min-height:76px;font-size:24px;line-height:1.35;color:#c9d6f8;margin-top:16px}
+.qside{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.ring{position:relative;width:300px;height:300px}
+.ring svg{transform:rotate(-90deg)}
+.ring .v{position:absolute;inset:0;display:grid;place-items:center;font-size:76px;font-weight:800;font-family:var(--mono)}
+.ring .v small{display:block;font-size:22px;color:var(--mut);font-weight:500;font-family:var(--sans);margin-top:-14px}
+.dots{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.dots i{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.14);transition:.3s}
+.dots i.cur{box-shadow:0 0 0 3px var(--cyan)}.dots i.ok{background:var(--green)}.dots i.no{background:var(--red)}
+
+/* ---------- xulosa 3D ---------- */
+.endgrid{display:grid;grid-template-columns:1fr 720px;gap:30px;height:790px;align-items:center}
+.sumlist{display:flex;flex-direction:column;gap:16px}
+.sumlist .it{display:flex;gap:20px;align-items:center;padding:18px 24px;font-size:27px;line-height:1.3;color:#dbe6ff}
+.sumlist .it i{flex:none;width:14px;height:14px;border-radius:50%;background:var(--cyan);box-shadow:0 0 16px var(--cyan)}
+.scene3d{perspective:1400px;display:grid;place-items:center;height:700px;cursor:grab}
+.cube{position:relative;width:300px;height:300px;transform-style:preserve-3d}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;border-radius:22px;
+  background:linear-gradient(145deg,rgba(47,123,255,.42),rgba(139,92,246,.38));border:2px solid rgba(160,200,255,.6);backface-visibility:visible;
+  box-shadow:inset 0 0 60px rgba(39,217,255,.25),0 0 40px rgba(47,123,255,.4);backdrop-filter:blur(4px)}
+.face .M{font-size:52px;color:#fff}.face small{font-size:21px;color:#cfe0ff;letter-spacing:.08em}
+.f1{transform:translateZ(150px)}.f2{transform:rotateY(90deg) translateZ(150px)}.f3{transform:rotateY(180deg) translateZ(150px)}
+.f4{transform:rotateY(-90deg) translateZ(150px)}.f5{transform:rotateX(90deg) translateZ(150px)}.f6{transform:rotateX(-90deg) translateZ(150px)}
+.thx{font-size:96px;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,#fff,#9cc4ff,var(--violet2));-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:12px}
+
+/* ---------- boshqaruv paneli ---------- */
+#bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:14px;padding:10px 16px;border-radius:99px;
+  background:rgba(8,12,38,.72);border:1px solid var(--line);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 10px 40px rgba(0,0,0,.5);transition:opacity .5s,transform .5s}
+body.idle #bar{opacity:0;transform:translateX(-50%) translateY(20px)}
+#bar button{width:44px;height:44px;border-radius:50%;border:1px solid transparent;background:transparent;color:#cfe0ff;font-size:20px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+#bar button:hover{background:rgba(255,255,255,.12);border-color:var(--line)}
+#bar button.off{color:#667}
+#bar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#counter{font-family:var(--mono);font-size:20px;color:#cfe0ff;min-width:84px;text-align:center}
+#progress{position:fixed;left:0;top:0;height:4px;z-index:21;width:0;background:linear-gradient(90deg,var(--blue),var(--violet),var(--cyan));box-shadow:0 0 16px var(--blue);transition:width .5s}
+#brand{position:fixed;left:26px;top:20px;z-index:20;font-size:15px;letter-spacing:.3em;color:rgba(190,210,255,.45);text-transform:uppercase;font-weight:700;transition:opacity .5s;pointer-events:none}
+body.idle #brand{opacity:.25}
+
+/* ---------- umumiy ko'rinish ---------- */
+#overview{position:fixed;inset:0;z-index:30;background:rgba(3,4,14,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:none;padding:50px 70px;overflow:auto}
+#overview.open{display:block}
+#overview h3{font-size:30px;margin-bottom:26px;color:#fff;letter-spacing:.06em}
+#ovgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.ovc{padding:20px 22px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer;transition:.2s;display:flex;gap:16px;align-items:center}
+.ovc:hover{border-color:var(--cyan);background:rgba(39,217,255,.1);transform:translateY(-3px)}
+.ovc.cur{border-color:var(--blue2);box-shadow:0 0 28px rgba(47,123,255,.4)}
+.ovc b{font-family:var(--mono);font-size:24px;color:var(--cyan);min-width:46px}
+.ovc span{font-size:21px;color:#e4ecff;line-height:1.25}
+
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="gw" x1="0" x2="1"><stop offset="0" stop-color="#27d9ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+</defs></svg>
+<div id="progress"></div>
+<div id="brand">Fizika · Tebranma harakatlar</div>
+
+<main id="stage">
+
+<!-- ======================= 1. SARLAVHA ======================= -->
+<section class="slide s-title" id="s-title" data-title="Tebranma harakatlar">
+  <div class="title-grid">
+    <div class="tl">
+      <div class="chip" data-a>FIZIKA · INTERAKTIV DARS</div>
+      <h1 data-a><span>TEBRANMA</span><span>HARAKATLAR</span></h1>
+      <p class="sub" data-a>Mexanik tebranishlar, ularning asosiy kattaliklari va tovush hodisalari — animatsiyalar va tajribalar orqali.</p>
+      <div class="eq" data-a><span class="M"><i>x</i> = <i class="c1">A</i> cos(<i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub>)</span></div>
+      <div class="hint" data-a>→ yoki Space — keyingi · F — to‘liq ekran · O — mundarija · M — ovoz</div>
+    </div>
+    <div class="tr glass" data-a>
+      <canvas id="c-title" data-w="880" data-h="700"></canvas>
+      <div class="cap">Mayatniklar to‘lqini — har bir nuqta o‘z chastotasi bilan tebranadi</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 2. MUNDARIJA ======================= -->
+<section class="slide" id="s-agenda" data-title="Dars rejasi">
+  <div class="hd" data-a><div class="kick">Reja</div><h2>Bugun nimalarni o‘rganamiz</h2></div>
+  <div class="agenda">
+    <div class="ag" data-a data-tilt data-goto="s-concept"><span class="no">01</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,0 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Tebranma harakat tushunchasi</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-types"><span class="no">02</span><svg viewBox="0 0 170 70"><path d="M0,35 Q14,0 28,35 T56,35 T84,35 T112,35 T140,35 T168,35"/></svg><span class="t">Tebranishlar turlari</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-free"><span class="no">03</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,-5 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Erkin va majburiy tebranishlar</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-damped"><span class="no">04</span><svg viewBox="0 0 170 70"><path d="M0,35 Q10,0 20,35 T40,35 Q48,22 56,35 T72,35 Q78,29 84,35 T96,35 T168,35"/></svg><span class="t">So‘nuvchi va so‘nmas tebranishlar</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-harmonic"><span class="no">05</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,-8 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Garmonik tebranishlar</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-amp"><span class="no">06</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,-15 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Tebranish amplitudasi</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-period"><span class="no">07</span><svg viewBox="0 0 170 70"><path d="M0,35 Q28,0 56,35 T112,35 T168,35"/></svg><span class="t">Tebranish davri</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-freq"><span class="no">08</span><svg viewBox="0 0 170 70"><path d="M0,35 Q10,0 20,35 T40,35 T60,35 T80,35 T100,35 T120,35 T140,35 T160,35"/></svg><span class="t">Tebranish chastotasi</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-phase"><span class="no">09</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,0 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Siklik chastota va faza</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-lab"><span class="no">10</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,0 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Virtual laboratoriya</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-soundgen"><span class="no">11</span><svg viewBox="0 0 170 70"><path d="M0,35 Q8,5 16,35 T32,35 T48,35 T64,35 T80,35 T96,35 T112,35 T128,35 T144,35"/></svg><span class="t">Tovushning tebranish orqali hosil bo‘lishi</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-props"><span class="no">12</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,-8 42,35 T84,35 Q95,5 106,35 T128,35 T168,35"/></svg><span class="t">Tovushning asosiy xususiyatlari</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-range"><span class="no">13</span><svg viewBox="0 0 170 70"><path d="M0,35 Q40,0 80,35 T160,35"/></svg><span class="t">Infra-, ultra- va eshitiladigan tovush</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-media"><span class="no">14</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,0 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Tovushning muhitlarda tarqalishi</span></div>
+    <div class="ag" data-a data-tilt data-goto="s-quiz"><span class="no">15</span><svg viewBox="0 0 170 70"><path d="M0,35 Q21,0 42,35 T84,35 T126,35 T168,35"/></svg><span class="t">Bilimni sinash</span></div>
+  </div>
+</section>
+
+<!-- ======================= 3. TUSHUNCHA ======================= -->
+<section class="slide" id="s-concept" data-title="Tebranma harakat tushunchasi">
+  <div class="hd" data-a><div class="kick">01 · Asosiy tushuncha</div><h2>Tebranma harakat nima?</h2></div>
+  <div class="body" style="--cols:640px 1fr">
+    <div class="col">
+      <div class="card def" data-a><b>Tebranma harakat</b> — jismning <span class="hl">muvozanat vaziyati</span> atrofida vaqt o‘tishi bilan takrorlanib turadigan harakati.</div>
+      <div class="card" data-a>
+        <div class="mini">Tebranish uchun zarur shartlar</div>
+        <div class="pt step"><i class="n">1</i><span>Barqaror <b>muvozanat vaziyati</b> mavjud</span></div>
+        <div class="pt step"><i class="n">2</i><span>Muvozanatdan chiqarilganda <b>qaytaruvchi kuch</b> paydo bo‘ladi</span></div>
+        <div class="pt step"><i class="n">3</i><span>Ishqalanish kuchi <b>kichik</b></span></div>
+      </div>
+      <div class="rowbtns" data-a><button class="btn" id="b-kick">Turtki berish</button><button class="btn alt" id="b-fric">Ishqalanish: o‘chiq</button></div>
+      <div class="note" data-a>Jismni sichqoncha bilan tortib, qo‘yib yuboring — u muvozanat vaziyati atrofida tebranadi.</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-concept" data-w="1000" data-h="720"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 4. TURLARI ======================= -->
+<section class="slide" id="s-types" data-title="Tebranishlar turlari">
+  <div class="hd" data-a><div class="kick">02 · Tasnif</div><h2>Tebranishlarning turlari</h2></div>
+  <div class="tcols">
+    <div class="card tcol" data-a data-tilt>
+      <div class="th">Hosil bo‘lish usuliga ko‘ra</div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="free"></svg><b>Erkin</b><span>Boshlang‘ich turtkidan so‘ng ichki kuchlar taʼsirida (mayatnik)</span></div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="forced"></svg><b>Majburiy</b><span>Tashqi davriy kuch taʼsirida (arg‘imchoqni itarish)</span></div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="auto"></svg><b>Avtotebranish</b><span>Energiya manbaini sistema o‘zi boshqaradi (soat)</span></div>
+    </div>
+    <div class="card tcol" data-a data-tilt>
+      <div class="th">Energiyaning o‘zgarishiga ko‘ra</div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="decay"></svg><b>So‘nuvchi</b><span>Ishqalanish tufayli energiya kamayadi, amplituda kichrayadi</span></div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="steady"></svg><b>So‘nmas</b><span>Energiya yo‘qotishi to‘ldirib turiladi, amplituda o‘zgarmaydi</span></div>
+    </div>
+    <div class="card tcol" data-a data-tilt>
+      <div class="th">Qonuniyatiga ko‘ra</div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="sine"></svg><b>Garmonik</b><span>Koordinata sinus yoki kosinus qonuni bo‘yicha o‘zgaradi</span></div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="nonharm"></svg><b>Nogarmonik</b><span>Murakkab shakldagi davriy tebranish (masalan, to‘g‘ri burchakli)</span></div>
+    </div>
+    <div class="card tcol" data-a data-tilt>
+      <div class="th">Fizik tabiatiga ko‘ra</div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="mech"></svg><b>Mexanik</b><span>Jismlarning siljishi: mayatnik, tor, kamertonning oyoqchalari</span></div>
+      <div class="ti"><svg class="mw" viewBox="0 0 240 80" data-w="em"></svg><b>Elektromagnit</b><span>Tok va kuchlanishning tebranishi: tebranish konturi</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 5. ERKIN ======================= -->
+<section class="slide" id="s-free" data-title="Erkin tebranishlar">
+  <div class="hd" data-a><div class="kick">03 · Erkin tebranishlar</div><h2>Sistema o‘z holiga qo‘yilganda</h2></div>
+  <div class="body" style="--cols:560px 1fr">
+    <div class="col">
+      <div class="card def" data-a style="font-size:28px"><b>Erkin tebranishlar</b> — sistemani muvozanatdan chiqarib, so‘ng o‘z holiga qo‘yganda <span class="hl">ichki kuchlar</span> taʼsirida sodir bo‘ladigan tebranishlar.</div>
+      <div class="card ctls" data-a>
+        <div class="ctl"><div class="cl"><span>Massa <i style="font-family:var(--math)">m</i></span><b id="o-fm">1.0 kg</b></div><input id="r-fm" type="range" min="0.2" max="3" step="0.1" value="1"></div>
+        <div class="ctl"><div class="cl"><span>Bikrlik <i style="font-family:var(--math)">k</i></span><b id="o-fk">20 N/m</b></div><input id="r-fk" type="range" min="5" max="60" step="1" value="20"></div>
+      </div>
+      <div class="card" data-a style="display:flex;justify-content:space-around;align-items:center;padding:18px 20px">
+        <div class="fxbox"><div class="fx sm"><i>T</i><sub>0</sub> = 2π<span class="rad"><span class="rs">√</span><span class="rb"><span class="frac"><span><i>m</i></span><span><i>k</i></span></span></span></span></div></div>
+        <div class="ro-grid" style="--n:2;min-width:290px"><div class="ro hi"><small>davr T₀</small><b id="ro-fT">—</b></div><div class="ro hi"><small>chastota ν₀</small><b id="ro-fnu">—</b></div></div>
+      </div>
+      <div class="rowbtns" data-a><button class="btn" id="b-fkick">Turtki berish</button></div>
+      <div class="note" data-a>Davr faqat <b>m</b> va <b>k</b> ga bog‘liq — bu sistemaning <b>xususiy</b> tebranishi.</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-free" data-w="1100" data-h="720"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 6. MAJBURIY ======================= -->
+<section class="slide" id="s-forced" data-title="Majburiy tebranishlar va rezonans">
+  <div class="hd" data-a><div class="kick">03 · Majburiy tebranishlar</div><h2>Tashqi kuch va rezonans</h2></div>
+  <div class="body" style="--cols:520px 1fr">
+    <div class="col">
+      <div class="card def" data-a style="font-size:27px"><b>Majburiy tebranishlar</b> — davriy o‘zgaruvchi <span class="hl">tashqi kuch</span> taʼsirida hosil bo‘ladi. Ularning chastotasi majburlovchi kuch chastotasiga teng.</div>
+      <div class="card ctls" data-a>
+        <div class="ctl"><div class="cl"><span>Kuch chastotasi / xususiy</span><b id="o-fr">0.50</b></div><input id="r-fr" type="range" min="0.2" max="2" step="0.01" value="0.5"></div>
+        <div class="ctl"><div class="cl"><span>Ishqalanish ζ</span><b id="o-fz">0.15</b></div><input id="r-fz" type="range" min="0.08" max="0.5" step="0.01" value="0.15"></div>
+      </div>
+      <div class="rowbtns" data-a><button class="btn" id="b-res">Rezonansga o‘tkazish</button><span id="fres" class="badge info">Rezonansdan uzoq</span></div>
+      <div class="ro-grid" data-a style="--n:2"><div class="ro hi"><small>amplituda A</small><b id="ro-fA">—</b></div><div class="ro"><small>kuchayish A/U</small><b id="ro-fR">—</b></div></div>
+      <div class="note" data-a><b>Rezonans</b> — majburlovchi kuch chastotasi xususiy chastotaga yaqinlashganda amplitudaning keskin ortishi (Takoma ko‘prigi, 1940).</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-forced" data-w="1140" data-h="730"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 7. SO‘NUVCHI ======================= -->
+<section class="slide" id="s-damped" data-title="So‘nuvchi va so‘nmas tebranishlar">
+  <div class="hd" data-a><div class="kick">04 · Energiya o‘zgarishi</div><h2>So‘nuvchi va so‘nmas tebranishlar</h2></div>
+  <div class="body" style="--cols:560px 1fr">
+    <div class="col">
+      <div class="card" data-a style="font-size:26px;line-height:1.42;color:#dbe6ff"><span class="hl"><b>So‘nuvchi</b></span> — ishqalanish tufayli energiya kamayib, amplituda kichrayadi. <span class="hv"><b>So‘nmas</b></span> — yo‘qotilgan energiya tashqi manbadan to‘ldirib turiladi.</div>
+      <div class="seg" id="seg-dm" data-a>
+        <button data-v="0">Ideal</button><button data-v="1" class="on">So‘nuvchi</button><button data-v="2">Energiya manbai</button>
+      </div>
+      <div class="card ctls" data-a>
+        <div class="ctl"><div class="cl"><span>Ishqalanish γ</span><b id="o-dg">0.20</b></div><input id="r-dg" type="range" min="0" max="0.7" step="0.01" value="0.2"></div>
+      </div>
+      <div class="ro-grid" data-a style="--n:2"><div class="ro hi"><small>amplituda</small><b id="ro-dA">—</b></div><div class="ro"><small>energiya</small><b id="ro-dE">—</b></div></div>
+      <div class="rowbtns" data-a><button class="btn" id="b-dreset">Qayta boshlash</button></div>
+      <div class="note" data-a>«Energiya manbai» rejimida soat mexanizmi kabi tashqi energiya ishqalanish yo‘qotishini to‘ldiradi — <b>avtotebranish</b>.</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-damp" data-w="1100" data-h="720"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 8. GARMONIK ======================= -->
+<section class="slide" id="s-harmonic" data-title="Garmonik tebranishlar">
+  <div class="hd" data-a><div class="kick">05 · Garmonik tebranishlar</div><h2>Kosinus qonuni bo‘yicha harakat</h2></div>
+  <div class="body" style="--cols:520px 1fr">
+    <div class="col">
+      <div class="card" data-a style="padding:20px 26px;font-size:25px;line-height:1.4;color:#dbe6ff"><b>Garmonik tebranish</b> — koordinata vaqt o‘tishi bilan <span class="hl">sinus</span> yoki <span class="hl">kosinus</span> qonuni bo‘yicha o‘zgaradigan tebranish.</div>
+      <div class="card fxbox" data-a style="padding:16px 12px;gap:2px">
+        <div class="fx md"><i>x</i> = <i class="c1">A</i> cos(<i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub>)</div>
+        <div class="fx sm" style="font-size:34px;opacity:.9"><i>v</i> = −<i class="c1">A</i><i class="c3">ω</i> sin(<i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub>)</div>
+        <div class="fx sm" style="font-size:34px;opacity:.9"><i>a</i> = −<i class="c3">ω</i><sup>2</sup><i>x</i></div>
+      </div>
+      <div class="card ctls" data-a style="gap:14px;padding:20px 26px">
+        <div class="ctl"><div class="cl"><span style="color:var(--blue2)">Amplituda A</span><b id="o-ha">6.0 sm</b></div><input id="r-ha" type="range" min="2" max="10" step="0.1" value="6"></div>
+        <div class="ctl"><div class="cl"><span style="color:var(--cyan)">Chastota ν</span><b id="o-hn">0.50 Hz</b></div><input id="r-hn" type="range" min="0.25" max="1" step="0.05" value="0.5"></div>
+        <div class="ctl"><div class="cl"><span style="color:var(--violet2)">Boshlang‘ich faza φ₀</span><b id="o-hp">0.00π</b></div><input id="r-hp" type="range" min="-1" max="1" step="0.05" value="0"></div>
+      </div>
+      <div class="rowbtns" data-a>
+        <label class="chk c2"><input type="checkbox" id="k-hv"><span>v(t)</span></label>
+        <label class="chk c3"><input type="checkbox" id="k-ha"><span>a(t)</span></label>
+        <button class="btn alt" id="b-hplay" style="padding:10px 20px">⏸ Pauza</button>
+      </div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-harm" data-w="1140" data-h="730"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 9. AMPLITUDA ======================= -->
+<section class="slide" id="s-amp" data-title="Tebranish amplitudasi">
+  <div class="hd" data-a><div class="kick">06 · Amplituda</div><h2>Tebranish amplitudasi</h2></div>
+  <div class="body" style="--cols:560px 1fr">
+    <div class="col">
+      <div class="card def" data-a style="font-size:29px"><b>Amplituda <i class="M c1">A</i></b> — tebranayotgan jismning muvozanat vaziyatidan <span class="hl">eng katta</span> og‘ishi.<br><span style="color:var(--mut);font-size:25px">SI birligi: metr (m)</span></div>
+      <div class="card ctls" data-a>
+        <div class="ctl"><div class="cl"><span>Amplituda A</span><b id="o-aa">5.0 sm</b></div><input id="r-aa" type="range" min="1" max="10" step="0.1" value="5"></div>
+        <div class="rowbtns"><button class="btn alt" id="b-a2">2 sm</button><button class="btn alt" id="b-a5">5 sm</button><button class="btn alt" id="b-a8">9 sm</button></div>
+      </div>
+      <div class="ro-grid" data-a style="--n:2"><div class="ro hi"><small>oraliq 2A</small><b id="ro-a2A">—</b></div><div class="ro"><small>energiya E</small><b id="ro-aE">—</b></div></div>
+      <div class="card fxbox" data-a style="padding:14px"><div class="fx sm"><i>E</i> = <span class="frac"><span><i>k</i><i class="c1">A</i><sup>2</sup></span><span>2</span></span></div></div>
+      <div class="note" data-a>Amplituda 2 marta oshsa, energiya <b>4 marta</b> ortadi. Tovushda amplituda tovush <b>kuchliligini</b> belgilaydi.</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-amp" data-w="1100" data-h="720"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 10. DAVR ======================= -->
+<section class="slide" id="s-period" data-title="Tebranish davri">
+  <div class="hd" data-a><div class="kick">07 · Davr</div><h2>Tebranish davri</h2></div>
+  <div class="body" style="--cols:560px 1fr">
+    <div class="col">
+      <div class="card" data-a style="padding:20px 26px"><div class="def" style="font-size:27px"><b>Davr <i class="M c3">T</i></b> — bitta to‘liq tebranish uchun ketgan vaqt. <span style="color:var(--mut);font-size:23px">SI: sekund (s)</span></div>
+        <div class="fx md" style="text-align:center;margin-top:6px"><i>T</i> = <span class="frac"><span><i>t</i></span><span><i>N</i></span></span></div></div>
+      <div class="seg" id="seg-pm" data-a><button data-v="0" class="on">Matematik mayatnik</button><button data-v="1">Prujinali mayatnik</button></div>
+      <div class="card ctls" data-a id="g-pend" style="gap:14px;padding:20px 26px">
+        <div class="ctl"><div class="cl"><span>Uzunlik l</span><b id="o-pl">1.00 m</b></div><input id="r-pl" type="range" min="0.1" max="2.5" step="0.05" value="1"></div>
+        <div class="ctl"><div class="cl"><span>Boshlang‘ich burchak</span><b id="o-pa">10°</b></div><input id="r-pa" type="range" min="3" max="25" step="1" value="10"></div>
+        <div class="ctl"><div class="cl"><span>Massa m</span><b id="o-pm">1.0 kg</b></div><input id="r-pm" type="range" min="0.2" max="3" step="0.1" value="1"></div>
+        <div class="seg" id="seg-pg"><button data-g="9.81" class="on">Yer</button><button data-g="1.62">Oy</button><button data-g="3.71">Mars</button><button data-g="24.79">Yupiter</button></div>
+      </div>
+      <div class="card ctls" data-a id="g-spr" style="display:none;gap:16px">
+        <div class="ctl"><div class="cl"><span>Massa m</span><b id="o-sm">1.0 kg</b></div><input id="r-sm" type="range" min="0.1" max="3" step="0.1" value="1"></div>
+        <div class="ctl"><div class="cl"><span>Bikrlik k</span><b id="o-sk">40 N/m</b></div><input id="r-sk" type="range" min="10" max="100" step="1" value="40"></div>
+      </div>
+      <div class="ro-grid" data-a style="--n:4"><div class="ro"><small>N</small><b id="ro-pN">0</b></div><div class="ro"><small>t, s</small><b id="ro-pt">0.00</b></div><div class="ro hi"><small>t/N</small><b id="ro-pTexp">—</b></div><div class="ro"><small>nazariy T</small><b id="ro-pTth">—</b></div></div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-period" data-w="1100" data-h="720"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 11. CHASTOTA ======================= -->
+<section class="slide" id="s-freq" data-title="Tebranish chastotasi">
+  <div class="hd" data-a><div class="kick">08 · Chastota</div><h2>Tebranish chastotasi</h2></div>
+  <div class="body" style="--cols:560px 1fr">
+    <div class="col">
+      <div class="card" data-a style="padding:20px 26px"><div class="def" style="font-size:27px"><b>Chastota <i class="M c3">ν</i></b> — 1 sekundda bajariladigan to‘liq tebranishlar soni. <span style="color:var(--mut);font-size:23px">SI: hertz (Hz)</span></div>
+        <div class="fx md" style="text-align:center;margin-top:8px"><i class="c3">ν</i> = <span class="frac"><span><i>N</i></span><span><i>t</i></span></span> = <span class="frac"><span>1</span><span><i>T</i></span></span></div></div>
+      <div class="card ctls" data-a>
+        <div class="ctl"><div class="cl"><span>To‘rtinchi qator: ν</span><b id="o-nu">1.50 Hz</b></div><input id="r-nu" type="range" min="0.25" max="4" step="0.05" value="1.5"></div>
+        <div class="rowbtns"><button class="btn alt" id="b-freset">⟲ Vaqtni nolga qaytarish</button></div>
+      </div>
+      <div class="note" data-a>1 Hz = 1 tebranish/s · 1 kHz = 10³ Hz · 1 MHz = 10⁶ Hz. Birlik Genrix Gers nomi bilan atalgan. <b>Chastota qancha katta bo‘lsa, davr shuncha kichik.</b></div>
+    </div>
+    <div class="col" style="gap:18px">
+      <div class="card cv" data-a><canvas id="c-freq" data-w="1100" data-h="450"></canvas></div>
+      <div class="card" data-a style="padding:20px 24px;flex:1">
+        <div class="mini" style="margin-bottom:10px">Tovushda chastota — notalarni chaling</div>
+        <div id="piano" style="display:flex;gap:10px"></div>
+        <div style="display:flex;gap:30px;margin-top:14px;font-family:var(--mono);font-size:26px"><span>ν = <b id="ro-kf" style="color:var(--cyan)">—</b></span><span>T = <b id="ro-kT" style="color:var(--violet2)">—</b></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 12. SIKLIK CHASTOTA VA FAZA ======================= -->
+<section class="slide" id="s-phase" data-title="Siklik chastota va faza">
+  <div class="hd" data-a><div class="kick">09 · Siklik chastota va faza</div><h2>Siklik chastota va faza</h2></div>
+  <div class="body" style="--cols:520px 1fr">
+    <div class="col">
+      <div class="card" data-a style="padding:20px 26px">
+        <div class="def" style="font-size:25px"><b class="hl">Siklik chastota ω</b> — 2π sekundda bajariladigan tebranishlar soni (rad/s).</div>
+        <div class="fx md" style="text-align:center;margin:4px 0 8px"><i class="c3">ω</i> = 2π<i>ν</i> = <span class="frac"><span>2π</span><span><i>T</i></span></span></div>
+        <div class="def" style="font-size:25px"><b class="hv">Faza φ</b> — tebranish holatini aniqlovchi kattalik (rad).</div>
+        <div class="fx md" style="text-align:center;margin-top:4px"><i class="c2">φ</i> = <i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub></div>
+      </div>
+      <div class="card ctls" data-a style="gap:14px;padding:20px 26px">
+        <div class="ctl"><div class="cl"><span style="color:var(--cyan)">Siklik chastota ω</span><b id="o-wn">2.5 rad/s</b></div><input id="r-wn" type="range" min="1" max="6" step="0.1" value="2.5"></div>
+        <div class="ctl"><div class="cl"><span style="color:var(--pink)">Fazalar farqi Δφ</span><b id="o-dp">0.50π</b></div><input id="r-dp" type="range" min="0" max="2" step="0.05" value="0.5"></div>
+        <div class="rowbtns"><button class="btn alt" id="b-p0" style="padding:10px 18px">Δφ = 0</button><button class="btn alt" id="b-p90" style="padding:10px 18px">π/2</button><button class="btn alt" id="b-p180" style="padding:10px 18px">π</button></div>
+      </div>
+      <div class="ro-grid" data-a style="--n:3"><div class="ro hi"><small>ω</small><b id="ro-pw">—</b></div><div class="ro"><small>ν, Hz</small><b id="ro-pnu">—</b></div><div class="ro"><small>T, s</small><b id="ro-pT">—</b></div></div>
+      <div data-a><span id="badge-pd" class="badge info">—</span></div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-phase" data-w="1140" data-h="730"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 13. FORMULALAR ======================= -->
+<section class="slide" id="s-formulas" data-title="Asosiy formulalar">
+  <div class="hd" data-a><div class="kick">Xulosa · Formulalar</div><h2>Asosiy formulalar jamlanmasi</h2></div>
+  <div class="fgrid" data-a>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Davr</span><div class="fx sm"><i class="c3">T</i> = <span class="frac"><span><i>t</i></span><span><i>N</i></span></span></div></div><div class="b"><b>Tebranish davri</b>Bitta to‘liq tebranish vaqti.<br>Birligi: s</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Chastota</span><div class="fx sm"><i class="c3">ν</i> = <span class="frac"><span><i>N</i></span><span><i>t</i></span></span> = <span class="frac"><span>1</span><span><i>T</i></span></span></div></div><div class="b"><b>Chastota</b>1 sekunddagi tebranishlar soni.<br>Birligi: Hz</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Siklik chastota</span><div class="fx sm"><i class="c3">ω</i> = 2π<i>ν</i> = <span class="frac"><span>2π</span><span><i>T</i></span></span></div></div><div class="b"><b>Siklik chastota</b>2π sekunddagi tebranishlar soni.<br>Birligi: rad/s</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Garmonik qonun</span><div class="fx sm"><i>x</i> = <i class="c1">A</i> cos(<i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub>)</div></div><div class="b"><b>Koordinata</b>Vaqt o‘tishi bilan jism koordinatasining o‘zgarishi.<br>Birligi: m</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Faza</span><div class="fx sm"><i class="c2">φ</i> = <i class="c3">ω</i><i>t</i> + <i class="c2">φ</i><sub>0</sub></div></div><div class="b"><b>Tebranish fazasi</b>Tebranish holatini aniqlaydi.<br>Birligi: rad</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Matematik mayatnik</span><div class="fx sm"><i>T</i> = 2π<span class="rad"><span class="rs">√</span><span class="rb"><span class="frac"><span><i>l</i></span><span><i>g</i></span></span></span></span></div></div><div class="b"><b>Davr</b>Uzunlik <i>l</i> va erkin tushish tezlanishi <i>g</i> ga bog‘liq, massaga emas.</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">Prujinali mayatnik</span><div class="fx sm"><i>T</i> = 2π<span class="rad"><span class="rs">√</span><span class="rb"><span class="frac"><span><i>m</i></span><span><i>k</i></span></span></span></span></div></div><div class="b"><b>Davr</b>Massa <i>m</i> va prujina bikrligi <i>k</i> ga bog‘liq, amplitudaga emas.</div></div></div>
+    <div class="flip"><div class="in"><div class="f"><span class="lab">To‘lqin tezligi</span><div class="fx sm"><i>v</i> = <i class="c4">λ</i><i class="c3">ν</i> = <span class="frac"><span><i class="c4">λ</i></span><span><i>T</i></span></span></div></div><div class="b"><b>Tovush tezligi</b>To‘lqin uzunligi λ va chastota ν orqali.<br>Birligi: m/s</div></div></div>
+  </div>
+  <div class="card" data-a style="margin-top:26px;padding:22px 30px">
+    <div class="mini" style="margin-bottom:12px">Tezkor kalkulyator — istalgan maydonga qiymat kiriting</div>
+    <div class="conv">
+      <div><label>Chastota ν, Hz</label><input id="i-nu" type="text" inputmode="decimal" value="2"></div>
+      <div><label>Davr T, s</label><input id="i-T" type="text" inputmode="decimal" value="0.5"></div>
+      <div><label>Siklik chastota ω, rad/s</label><input id="i-w" type="text" inputmode="decimal" value="12.566"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 14. VIRTUAL LABORATORIYA ======================= -->
+<section class="slide" id="s-lab" data-title="Virtual laboratoriya">
+  <div class="hd" data-a><div class="kick">Tajriba · Virtual laboratoriya</div><h2>Sirli sayyora: g ni o‘lchang</h2></div>
+  <div class="body" style="--cols:1028px 1fr">
+    <div class="card cv" data-a><canvas id="c-lab" data-w="1000" data-h="720"></canvas></div>
+    <div class="col" style="gap:16px">
+      <div class="card" data-a style="padding:18px 24px;font-size:24px;line-height:1.4;color:#dbe6ff">Mayatnik nomaʼlum sayyorada. Uning <b>10 ta tebranish</b> vaqtini o‘lchab, <span class="fx" style="font-size:34px">g = <span class="frac"><span>4π<sup>2</sup><i>l</i></span><span><i>T</i><sup>2</sup></span></span></span> ni hisoblang va sayyorani toping.</div>
+      <div class="card ctls" data-a style="gap:14px;padding:18px 24px">
+        <div class="ctl"><div class="cl"><span>Uzunlik l</span><b id="o-ll">1.00 m</b></div><input id="r-ll" type="range" min="0.3" max="1.5" step="0.05" value="1"></div>
+        <div class="seg" id="seg-lspd"><button data-v="1">×1</button><button data-v="4" class="on">×4</button><button data-v="10">×10</button></div>
+        <div class="rowbtns"><button class="btn" id="b-lmeasure">▶ O‘lchash (10 tebranish)</button></div>
+      </div>
+      <div class="card" data-a style="padding:14px 18px;flex:1;min-height:0">
+        <table class="tb"><thead><tr><th>№</th><th>l, m</th><th>t₁₀, s</th><th>T, s</th><th>g, m/s²</th></tr></thead><tbody id="tb-lab"></tbody></table>
+      </div>
+      <div class="card" data-a style="padding:16px 22px">
+        <div class="mini" style="margin-bottom:10px">Bu qaysi sayyora?</div>
+        <div class="seg" id="seg-guess"><button data-g="Oy">Oy</button><button data-g="Mars">Mars</button><button data-g="Yer">Yer</button><button data-g="Yupiter">Yupiter</button></div>
+        <div class="msg" id="msg-lab" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 15. TOVUSH HOSIL BO‘LISHI ======================= -->
+<section class="slide" id="s-soundgen" data-title="Tovushning hosil bo‘lishi">
+  <div class="hd" data-a><div class="kick">10 · Tovush</div><h2>Tovush tebranishdan tug‘iladi</h2></div>
+  <div class="body" style="--cols:520px 1fr">
+    <div class="col">
+      <div class="card" data-a style="padding:16px 26px;font-size:24px;line-height:1.38;color:#dbe6ff"><b>Tovush</b> — elastik muhitda tarqaluvchi <span class="hl">bo‘ylama mexanik to‘lqin</span>. Manbai — tebranayotgan jism.</div>
+      <div class="card" data-a style="padding:16px 26px">
+        <div class="pt step" style="font-size:24px;margin:8px 0"><i class="n">1</i><span>Jism muhit zarralarini <b>siqadi</b> va <b>siyraklashtiradi</b></span></div>
+        <div class="pt step" style="font-size:24px;margin:8px 0"><i class="n">2</i><span>Siqilish va siyraklanish sohalari muhitda <b>tarqaladi</b></span></div>
+        <div class="pt step" style="font-size:24px;margin:8px 0"><i class="n">3</i><span>Quloq pardasi tebranadi — biz <b>eshitamiz</b></span></div>
+      </div>
+      <div class="card ctls" data-a style="gap:14px;padding:18px 26px">
+        <div class="rowbtns"><button class="btn" id="b-strike">🔔 Diapazonni urish</button><button class="btn alt" id="b-cont">Doimiy manba: o‘chiq</button></div>
+        <div class="ctl"><div class="cl"><span>Balandlik (chastota)</span><b id="o-gp">440 Hz</b></div><input id="r-gp" type="range" min="200" max="600" step="10" value="440"></div>
+        <div class="ctl"><div class="cl"><span>Kuchlilik (amplituda)</span><b id="o-ga">60 %</b></div><input id="r-ga" type="range" min="10" max="100" step="1" value="60"></div>
+      </div>
+      <div class="note" data-a style="font-size:21px;line-height:1.35">Zarralar faqat o‘z o‘rni atrofida tebranadi — to‘lqin <b>energiyani</b> uzatadi, modda ko‘chmaydi.</div>
+    </div>
+    <div class="card cv" data-a><canvas id="c-sgen" data-w="1140" data-h="730"></canvas></div>
+  </div>
+</section>
+
+<!-- ======================= 16. TOVUSH XUSUSIYATLARI ======================= -->
+<section class="slide" id="s-props" data-title="Tovushning asosiy xususiyatlari">
+  <div class="hd" data-a><div class="kick">11 · Tovush xususiyatlari</div><h2>Balandlik, kuchlilik va tembr</h2></div>
+  <div class="pcols">
+    <div class="card pcard" data-a>
+      <h3><small>chastotaga bog‘liq</small>Tovush balandligi</h3>
+      <canvas id="c-p1" data-w="460" data-h="230"></canvas>
+      <div class="ctl"><div class="cl"><span>Chastota ν</span><b id="o-p1">440 Hz</b></div><input id="r-p1" type="range" min="100" max="1200" step="1" value="440"></div>
+      <div class="rowbtns"><button class="btn" id="b-pl1">▶ Tinglash</button><span class="badge info" id="t-p1">La</span></div>
+      <p>Chastota qancha katta bo‘lsa, tovush shuncha <b>yuqori</b> (ingichka) eshitiladi.</p>
+    </div>
+    <div class="card pcard" data-a>
+      <h3><small>amplitudaga bog‘liq</small>Tovush kuchliligi</h3>
+      <canvas id="c-p2" data-w="460" data-h="230"></canvas>
+      <div class="ctl"><div class="cl"><span>Daraja L</span><b id="o-p2">60 dB</b></div><input id="r-p2" type="range" min="20" max="100" step="1" value="60"></div>
+      <div class="rowbtns"><button class="btn" id="b-pl2">▶ Tinglash</button><span class="badge info" id="t-p2">suhbat</span></div>
+      <p>Amplituda qancha katta bo‘lsa, tovush shuncha <b>kuchli</b>. Birligi — detsibel (dB).</p>
+    </div>
+    <div class="card pcard" data-a>
+      <h3><small>garmonikalar tarkibi</small>Tembr</h3>
+      <canvas id="c-p3" data-w="460" data-h="230"></canvas>
+      <div class="seg" id="seg-p3" style="padding:4px"><button data-v="sine" class="on" style="padding:10px 8px;font-size:20px">Sinus</button><button data-v="triangle" style="padding:10px 8px;font-size:20px">Uchburchak</button><button data-v="square" style="padding:10px 8px;font-size:20px">Kvadrat</button><button data-v="sawtooth" style="padding:10px 8px;font-size:20px">Arra</button></div>
+      <div class="rowbtns"><button class="btn" id="b-pl3">▶ Tinglash</button></div>
+      <p>Bir xil balandlik va kuchda ham manbalar <b>to‘lqin shakli</b> (obertonlar) bilan farqlanadi.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 17. INFRA / ULTRA ======================= -->
+<section class="slide" id="s-range" data-title="Infratovush, eshitiladigan va ultratovush">
+  <div class="hd" data-a><div class="kick">12 · Chastota diapazonlari</div><h2>Infratovush, eshitiladigan tovush, ultratovush</h2></div>
+  <div class="card cv" data-a style="padding:10px"><canvas id="c-range" data-w="1720" data-h="520"></canvas></div>
+  <div style="display:flex;align-items:center;gap:20px;margin:18px 0" data-a>
+    <button class="btn" id="b-rplay">🔊 Tanlangan chastotani eshitish</button>
+    <div class="ro hi" style="min-width:300px"><small>chastota</small><b id="ro-rf">—</b></div>
+    <span id="badge-rz" class="badge info">—</span>
+    <span style="color:var(--mut);font-size:22px">Chiziqni sichqoncha bilan suring</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px" data-a>
+    <div class="card zc" data-z="0" style="padding:18px 24px"><div class="mini" style="color:var(--violet2);margin-bottom:8px">Infratovush · ν &lt; 20 Hz</div><span style="font-size:23px;line-height:1.4;color:#c9d6f8">Zilzila, vulqon, bo‘ron; fillar va kitlar aloqasi. Odam eshitmaydi, lekin kuchli bo‘lsa his etadi.</span></div>
+    <div class="card zc" data-z="1" style="padding:18px 24px"><div class="mini" style="color:var(--cyan);margin-bottom:8px">Eshitiladigan · 20 Hz – 20 kHz</div><span style="font-size:23px;line-height:1.4;color:#c9d6f8">Inson qulog‘i qabul qiladi: nutq va musiqa.</span></div>
+    <div class="card zc" data-z="2" style="padding:18px 24px"><div class="mini" style="color:var(--pink);margin-bottom:8px">Ultratovush · ν &gt; 20 kHz</div><span style="font-size:23px;line-height:1.4;color:#c9d6f8">Tibbiyotda UTT, sonar, nuqsonlarni aniqlash; ko‘rshapalak va delfinlar yo‘nalish topadi.</span></div>
+  </div>
+</section>
+
+<!-- ======================= 18. MUHITLAR ======================= -->
+<section class="slide" id="s-media" data-title="Tovushning turli muhitlarda tarqalishi">
+  <div class="hd" data-a><div class="kick">13 · Tovush tezligi</div><h2>Tovush turli muhitlarda tarqalishi</h2></div>
+  <div class="body" style="--cols:1160px 1fr">
+    <div class="card cv" data-a><canvas id="c-media" data-w="1130" data-h="720"></canvas></div>
+    <div class="col" style="gap:16px">
+      <div class="card ctls" data-a style="gap:14px;padding:20px 24px">
+        <div class="rowbtns"><button class="btn" id="b-mgo">▶ Tovushni yuborish</button></div>
+        <div class="seg" id="seg-mspd"><button data-v="1">Real</button><button data-v="0.25" class="on">4× sekin</button><button data-v="0.1">10× sekin</button></div>
+        <div class="ctl"><div class="cl"><span>Havo harorati</span><b id="o-mt">20 °C</b></div><input id="r-mt" type="range" min="-20" max="40" step="1" value="20"></div>
+      </div>
+      <div class="card" data-a style="padding:14px 20px">
+        <table class="tb"><thead><tr><th style="text-align:left">Muhit</th><th>v, m/s</th><th>1 km, s</th></tr></thead>
+          <tbody>
+            <tr><td class="l">Havo</td><td id="tv-air">343</td><td id="tt-air">2.91</td></tr>
+            <tr><td class="l">Suv</td><td>1480</td><td>0.68</td></tr>
+            <tr><td class="l">Po‘lat</td><td>≈5000</td><td>0.20</td></tr>
+            <tr><td class="l">Vakuum</td><td>0</td><td>∞</td></tr>
+          </tbody></table>
+      </div>
+      <div class="card fxbox" data-a style="padding:14px"><div class="fx sm"><i>t</i> = <span class="frac"><span><i>s</i></span><span><i>v</i></span></span></div></div>
+      <div class="note" data-a>Muhit zichroq va elastikroq bo‘lsa, tovush tez tarqaladi. <b>Vakuumda</b> zarralar yo‘q — tovush tarqalmaydi.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 19. TEST ======================= -->
+<section class="slide" id="s-quiz" data-title="Bilimni sinash">
+  <div class="hd" data-a><div class="kick">Mustahkamlash</div><h2>Bilimingizni sinab ko‘ring</h2></div>
+  <div class="qwrap" data-a>
+    <div class="card" style="padding:34px 40px">
+      <div class="mini" id="q-no">Savol 1 / 9</div>
+      <div class="qq" id="q-text"></div>
+      <div class="qo" id="q-opts"></div>
+      <div class="qfb" id="q-fb"></div>
+      <div class="rowbtns" style="margin-top:6px"><button class="btn" id="q-next" style="display:none">Keyingi savol →</button><button class="btn alt" id="q-restart" style="display:none">⟲ Qaytadan</button></div>
+    </div>
+    <div class="card qside">
+      <div class="ring"><svg width="300" height="300" viewBox="0 0 300 300"><circle cx="150" cy="150" r="128" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="18"/><circle id="q-arc" cx="150" cy="150" r="128" fill="none" stroke="url(#gw)" stroke-width="18" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="804" style="transition:stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)"/></svg><div class="v"><span><span id="q-score">0</span><small>ball</small></span></div></div>
+      <div class="dots" id="q-dots"></div>
+      <div id="q-grade" style="font-size:26px;color:#dbe6ff;min-height:70px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 20. XULOSA ======================= -->
+<section class="slide" id="s-end" data-title="Xulosa">
+  <div class="hd" data-a><div class="kick">Xulosa</div><h2>Asosiy g‘oyalar</h2></div>
+  <div class="endgrid">
+    <div class="sumlist">
+      <div class="card it" data-a><i></i><span><b>Tebranma harakat</b> — muvozanat atrofida takrorlanuvchi harakat.</span></div>
+      <div class="card it" data-a><i></i><span><b>Turlari:</b> erkin, majburiy, so‘nuvchi, so‘nmas, garmonik.</span></div>
+      <div class="card it" data-a><i></i><span><b>Kattaliklar:</b> amplituda A, davr T, chastota ν = 1/T, ω = 2πν, faza φ.</span></div>
+      <div class="card it" data-a><i></i><span><b>Rezonans:</b> kuch chastotasi xususiy chastotaga teng bo‘lganda amplituda keskin ortadi.</span></div>
+      <div class="card it" data-a><i></i><span><b>Tovush</b> — elastik muhitdagi bo‘ylama to‘lqin; balandlik — ν, kuchlilik — A, tembr — to‘lqin shakli.</span></div>
+      <div class="card it" data-a><i></i><span>Infra &lt; 20 Hz &lt; eshitiladigan &lt; 20 kHz &lt; ultra. Vakuumda tovush yo‘q.</span></div>
+    </div>
+    <div style="text-align:center" data-a>
+      <div class="thx">Rahmat!</div>
+      <div class="scene3d" id="scene"><div class="cube" id="cube">
+        <div class="face f1"><span class="M"><i>T</i> = <span class="frac"><span><i>t</i></span><span><i>N</i></span></span></span><small>DAVR</small></div>
+        <div class="face f2"><span class="M"><i>ν</i> = <span class="frac"><span>1</span><span><i>T</i></span></span></span><small>CHASTOTA</small></div>
+        <div class="face f3"><span class="M"><i>ω</i> = 2π<i>ν</i></span><small>SIKLIK CHASTOTA</small></div>
+        <div class="face f4"><span class="M"><i>φ</i> = <i>ωt</i> + <i>φ</i><sub>0</sub></span><small>FAZA</small></div>
+        <div class="face f5"><span class="M"><i>A</i></span><small>AMPLITUDA</small></div>
+        <div class="face f6"><span class="M"><i>v</i> = <i>λν</i></span><small>TO‘LQIN TEZLIGI</small></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="overview"><h3>Slaydlar · bosib o‘ting · Esc — yopish</h3><div id="ovgrid"></div></div>
+
+<div id="bar">
+  <button id="bt-prev" title="Oldingi (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <span id="counter">1 / 20</span>
+  <button id="bt-next" title="Keyingi (→)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  <button id="bt-ov" title="Mundarija (O)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
+  <button id="bt-snd" title="Ovoz (M)"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg></button>
+  <button id="bt-fs" title="To‘liq ekran (F)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+
+<script>
+/* ============================================================
+   ENGINE — sahna, navigatsiya, Web Audio, fon animatsiyasi
+   Tashqi kutubxonalarsiz, file:// orqali ishlaydi
+   ============================================================ */
+(function () {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const stage = $('#stage');
+  const slides = $$('.slide');
+  const N = slides.length;
+  window.Sims = window.Sims || {};
+  window.STAGE_SCALE = 1;
+  let cur = -1, steps = [], stepIdx = 0, lastT = performance.now(), overviewOpen = false;
+
+  /* ---------------- Web Audio ---------------- */
+  const Snd = {
+    ctx: null, master: null, muted: false, nodes: {},
+    ensure() {
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        this.ctx = new AC();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.9;
+        const comp = this.ctx.createDynamicsCompressor();
+        this.master.connect(comp); comp.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return true;
+    },
+    tone(freq, o = {}) {
+      if (!this.ensure()) return;
+      const { type = 'sine', gain = 0.2, dur = 0.6, attack = 0.01 } = o;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g); g.connect(this.master);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    },
+    start(id, freq, o = {}) {
+      if (!this.ensure()) return;
+      this.stop(id, 0.02);
+      const { type = 'sine', gain = 0.15 } = o;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.05);
+      osc.connect(g); g.connect(this.master); osc.start();
+      this.nodes[id] = { osc, g };
+    },
+    set(id, freq, gain) {
+      const n = this.nodes[id]; if (!n) return;
+      const t = this.ctx.currentTime;
+      if (freq != null) n.osc.frequency.setTargetAtTime(freq, t, 0.02);
+      if (gain != null) n.g.gain.setTargetAtTime(gain, t, 0.03);
+    },
+    setType(id, type) { const n = this.nodes[id]; if (n) n.osc.type = type; },
+    stop(id, rel = 0.08) {
+      const n = this.nodes[id]; if (!n) return;
+      const t = this.ctx.currentTime;
+      n.g.gain.cancelScheduledValues(t);
+      n.g.gain.setTargetAtTime(0.0001, t, rel / 3);
+      try { n.osc.stop(t + rel + 0.05); } catch (e) { /* allaqachon to‘xtagan */ }
+      delete this.nodes[id];
+    },
+    stopAll() { Object.keys(this.nodes).forEach(k => this.stop(k)); },
+    playing(id) { return !!this.nodes[id]; },
+    mute(m) {
+      this.muted = m;
+      if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.02);
+    }
+  };
+  window.Snd = Snd;
+
+  /* ---------------- Sahnani ekranga moslash ---------------- */
+  let fitTimer = 0;
+  function fit() {
+    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+    window.STAGE_SCALE = s;
+    sizeBg();
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => window.dispatchEvent(new Event('stagefit')), 120);
+  }
+
+  /* ---------------- Fon animatsiyasi ---------------- */
+  const bg = $('#bg'), bgx = bg.getContext('2d');
+  let bgW = 0, bgH = 0, bgTick = 0;
+  const motes = Array.from({ length: 46 }, () => ({ x: Math.random(), y: Math.random(), r: 1 + Math.random() * 2.2, s: 0.01 + Math.random() * 0.03, p: Math.random() * 6.28 }));
+  function sizeBg() {
+    bgW = bg.width = Math.max(320, Math.round(window.innerWidth / 2));
+    bgH = bg.height = Math.max(180, Math.round(window.innerHeight / 2));
+  }
+  function bgFrame(now) {
+    if (++bgTick % 2) return;
+    const t = now / 1000, w = bgW, h = bgH;
+    bgx.clearRect(0, 0, w, h);
+    // yumshoq yorug‘lik dog‘lari
+    const orbs = [
+      [0.15 + 0.05 * Math.sin(t * 0.13), 0.25 + 0.05 * Math.cos(t * 0.11), 0.42, 'rgba(47,123,255,0.20)'],
+      [0.85 + 0.04 * Math.cos(t * 0.1), 0.78 + 0.05 * Math.sin(t * 0.14), 0.46, 'rgba(139,92,246,0.22)'],
+      [0.6 + 0.06 * Math.sin(t * 0.08), 0.1 + 0.04 * Math.cos(t * 0.09), 0.3, 'rgba(39,217,255,0.10)']
+    ];
+    orbs.forEach(o => {
+      const g = bgx.createRadialGradient(o[0] * w, o[1] * h, 0, o[0] * w, o[1] * h, o[2] * w);
+      g.addColorStop(0, o[3]); g.addColorStop(1, 'rgba(0,0,0,0)');
+      bgx.fillStyle = g; bgx.fillRect(0, 0, w, h);
+    });
+    // sinus to‘lqinlar
+    for (let k = 0; k < 5; k++) {
+      bgx.beginPath();
+      const amp = h * (0.05 + 0.02 * k), f = 0.006 + k * 0.0016, sp = 0.5 + k * 0.17, y0 = h * (0.2 + k * 0.15);
+      for (let x = 0; x <= w; x += 6) {
+        const y = y0 + Math.sin(x * f + t * sp + k) * amp + Math.sin(x * f * 2.3 - t * sp * 0.7) * amp * 0.35;
+        x ? bgx.lineTo(x, y) : bgx.moveTo(x, y);
+      }
+      const g = bgx.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, 'rgba(47,123,255,0)'); g.addColorStop(0.5, k % 2 ? 'rgba(139,92,246,0.22)' : 'rgba(47,123,255,0.22)'); g.addColorStop(1, 'rgba(39,217,255,0)');
+      bgx.strokeStyle = g; bgx.lineWidth = 1.6; bgx.stroke();
+    }
+    // suzuvchi zarralar
+    motes.forEach(m => {
+      m.y -= m.s * 0.016; if (m.y < -0.02) { m.y = 1.02; m.x = Math.random(); }
+      const a = 0.25 + 0.25 * Math.sin(t * 0.8 + m.p);
+      bgx.fillStyle = 'rgba(160,200,255,' + a + ')';
+      bgx.beginPath(); bgx.arc(m.x * w + Math.sin(t * 0.3 + m.p) * 8, m.y * h, m.r, 0, 6.283); bgx.fill();
+    });
+  }
+
+  /* ---------------- Navigatsiya ---------------- */
+  function updateUI() {
+    $('#counter').textContent = (cur + 1) + ' / ' + N;
+    $('#progress').style.width = ((cur + 1) / N * 100) + '%';
+    $$('#ovgrid .ovc').forEach((c, i) => c.classList.toggle('cur', i === cur));
+  }
+
+  function go(i, force) {
+    i = Math.max(0, Math.min(N - 1, i));
+    if (i === cur && !force) return;
+    const dir = i >= cur ? 1 : -1;
+    const old = slides[cur], nw = slides[i];
+    if (old && old !== nw) {
+      const so = window.Sims[old.id];
+      if (so && so.leave) { try { so.leave(); } catch (e) { console.error(old.id, 'leave', e); } }
+      Snd.stopAll();
+      old.style.setProperty('--tx', (-dir * 140) + 'px');
+      old.classList.remove('active'); old.classList.add('leaving');
+      clearTimeout(old._t); old._t = setTimeout(() => old.classList.remove('leaving'), 950);
+    }
+    cur = i;
+    nw.classList.add('notrans');
+    nw.style.setProperty('--tx', (dir * 140) + 'px');
+    nw.classList.remove('leaving', 'active');
+    void nw.offsetWidth;
+    nw.classList.remove('notrans');
+    void nw.offsetWidth;
+    nw.classList.add('active');
+    // bosqichli ko‘rsatish (.step)
+    steps = $$('.step', nw);
+    if (dir > 0 || force) { steps.forEach(s => s.classList.remove('on')); stepIdx = 0; }
+    else { steps.forEach(s => s.classList.add('on')); stepIdx = steps.length; }
+    // sim
+    const s = window.Sims[nw.id];
+    if (s) {
+      try {
+        if (!s._inited) { s._inited = true; s.init && s.init(); }
+        s.enter && s.enter();
+      } catch (e) { console.error(nw.id, 'enter', e); }
+    }
+    updateUI();
+    try { history.replaceState(null, '', '#' + (cur + 1)); } catch (e) { /* file:// ba'zi brauzerlarda */ }
+  }
+  function next() {
+    if (stepIdx < steps.length) { steps[stepIdx++].classList.add('on'); return; }
+    go(cur + 1);
+  }
+  function prev() {
+    if (stepIdx > 0 && steps.length) { steps[--stepIdx].classList.remove('on'); return; }
+    go(cur - 1);
+  }
+  function goId(id) { const i = slides.findIndex(s => s.id === id); if (i >= 0) go(i); }
+
+  /* ---------------- Umumiy ko‘rinish ---------------- */
+  function buildOverview() {
+    const g = $('#ovgrid');
+    slides.forEach((s, i) => {
+      const d = document.createElement('div');
+      d.className = 'ovc';
+      d.innerHTML = '<b>' + String(i + 1).padStart(2, '0') + '</b><span>' + (s.dataset.title || s.id) + '</span>';
+      d.onclick = () => { toggleOverview(false); go(i); };
+      g.appendChild(d);
+    });
+  }
+  function toggleOverview(v) {
+    overviewOpen = v === undefined ? !overviewOpen : v;
+    $('#overview').classList.toggle('open', overviewOpen);
+    updateUI();
+  }
+
+  function toggleFs() {
+    const d = document;
+    if (!d.fullscreenElement && !d.webkitFullscreenElement) {
+      const e = d.documentElement; (e.requestFullscreen || e.webkitRequestFullscreen || function () { }).call(e);
+    } else { (d.exitFullscreen || d.webkitExitFullscreen || function () { }).call(d); }
+  }
+  function toggleSound() {
+    Snd.ensure(); Snd.mute(!Snd.muted);
+    $('#bt-snd').classList.toggle('off', Snd.muted);
+  }
+
+  /* ---------------- 3D tilt (kartochkalar) ---------------- */
+  function initTilt() {
+    $$('[data-tilt]').forEach(el => {
+      el.addEventListener('pointermove', e => {
+        const r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        el.style.transition = 'transform .08s linear, border-color .25s, box-shadow .25s';
+        el.style.transform = 'perspective(900px) rotateX(' + (-y * 9).toFixed(2) + 'deg) rotateY(' + (x * 12).toFixed(2) + 'deg) translateZ(14px)';
+      });
+      el.addEventListener('pointerleave', () => {
+        el.style.transition = 'transform .6s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s';
+        el.style.transform = '';
+      });
+    });
+  }
+
+  /* ---------------- Voqealar ---------------- */
+  function isTyping(t) { return t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'range' && t.type !== 'checkbox')); }
+  document.addEventListener('keydown', e => {
+    if (isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') {
+      if (overviewOpen) return;
+      if (k === ' ' && e.target && e.target.tagName === 'BUTTON') e.target.blur();
+      e.preventDefault(); next();
+    }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { if (overviewOpen) return; e.preventDefault(); prev(); }
+    else if (k === 'Home') { e.preventDefault(); go(0); }
+    else if (k === 'End') { e.preventDefault(); go(N - 1); }
+    else if (k === 'f' || k === 'F') toggleFs();
+    else if (k === 'o' || k === 'O' || k === 'Tab') { e.preventDefault(); toggleOverview(); }
+    else if (k === 'm' || k === 'M') toggleSound();
+    else if (k === 'Escape' && overviewOpen) toggleOverview(false);
+  });
+  // slayderdan keyin fokusni olib tashlash — o‘q tugmalari yana slaydlarni almashtirsin
+  document.addEventListener('pointerup', e => {
+    const t = e.target;
+    if (t && (t.type === 'range' || t.tagName === 'BUTTON' || t.type === 'checkbox')) setTimeout(() => t.blur(), 0);
+  });
+  document.addEventListener('click', e => {
+    const g = e.target.closest && e.target.closest('[data-goto]');
+    if (g) goId(g.dataset.goto);
+  });
+  // sensorli ekranda surish
+  let sx = 0, sy = 0, sTrack = false;
+  stage.addEventListener('pointerdown', e => {
+    sTrack = !(e.target.closest('canvas, input, button, .scene3d, .conv') || e.pointerType === 'mouse');
+    sx = e.clientX; sy = e.clientY;
+  });
+  stage.addEventListener('pointerup', e => {
+    if (!sTrack) return; sTrack = false;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.5) dx < 0 ? next() : prev();
+  });
+  let idleT = 0;
+  function wake() { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 3200); }
+  ['pointermove', 'pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, wake, { passive: true }));
+  window.addEventListener('resize', fit);
+  document.addEventListener('fullscreenchange', fit);
+  $('#bt-prev').onclick = prev; $('#bt-next').onclick = next;
+  $('#bt-ov').onclick = () => toggleOverview(); $('#bt-fs').onclick = toggleFs; $('#bt-snd').onclick = toggleSound;
+
+  /* ---------------- Asosiy sikl ---------------- */
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    const s = slides[cur] && window.Sims[slides[cur].id];
+    if (s && s.frame && !document.hidden && !overviewOpen) {
+      try { s.frame(dt, now / 1000); }
+      catch (e) { if (!s._err) { s._err = 1; console.error(slides[cur].id, 'frame', e); } }
+    }
+    bgFrame(now);
+    requestAnimationFrame(loop);
+  }
+
+  window.Deck = {
+    start() {
+      fit(); buildOverview(); initTilt();
+      slides.forEach(s => $$('[data-a]', s).forEach((el, k) => el.style.setProperty('--d', (k * 85) + 'ms')));
+      const h = parseInt((location.hash || '').slice(1), 10);
+      go(h > 0 && h <= N ? h - 1 : 0, true);
+      wake();
+      requestAnimationFrame(t => { lastT = t; loop(t); });
+    },
+    go, next, prev, goId, count: N, get index() { return cur; }
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   SIMS 1 — umumiy yordamchilar + 1…9-slaydlar simulyatsiyalari
+   ============================================================ */
+(function () {
+  'use strict';
+  const TAU = Math.PI * 2, PI = Math.PI;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const Sims = window.Sims = window.Sims || {};
+  const C = { blue: '#3d8bff', sky: '#7ab8ff', violet: '#9b6bff', violet2: '#b79bff', cyan: '#2fe0ff', pink: '#ff6bd6', amber: '#ffc857', green: '#4ade80', red: '#ff5d73', txt: '#e9efff', mut: '#98a6cf', grid: 'rgba(130,160,255,.14)', axis: 'rgba(190,210,255,.5)' };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const FONT = '"Segoe UI Variable Display","Segoe UI","SF Pro Display",Inter,Roboto,Arial,sans-serif';
+  const MATH = '"Cambria Math","STIX Two Math","Times New Roman",serif';
+
+  /* ---------- canvas ---------- */
+  const registry = [];
+  function mk(id) {
+    const c = document.getElementById(id);
+    const o = { c, w: +c.dataset.w, h: +c.dataset.h, ctx: null };
+    o.setup = () => {
+      const res = Math.min(2.5, Math.max(1, (window.STAGE_SCALE || 1) * (window.devicePixelRatio || 1)));
+      c.width = Math.round(o.w * res); c.height = Math.round(o.h * res);
+      c.style.width = o.w + 'px'; c.style.height = o.h + 'px';
+      o.ctx = c.getContext('2d'); o.ctx.setTransform(res, 0, 0, res, 0, 0);
+    };
+    o.pt = e => { const r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * o.w / r.width, y: (e.clientY - r.top) * o.h / r.height }; };
+    o.setup(); registry.push(o);
+    return o;
+  }
+  window.addEventListener('stagefit', () => registry.forEach(o => o.setup()));
+
+  /* ---------- boshqaruv elementlari ---------- */
+  function bind(id, fmt, cb) {
+    const r = document.getElementById(id), out = document.getElementById(id.replace(/^r-/, 'o-'));
+    const upd = () => {
+      const v = parseFloat(r.value);
+      r.style.setProperty('--p', ((v - r.min) / (r.max - r.min) * 100) + '%');
+      if (out) out.textContent = fmt ? fmt(v) : v;
+      return v;
+    };
+    r.addEventListener('input', () => { const v = upd(); cb && cb(v); });
+    upd();
+    return { el: r, get: () => parseFloat(r.value), set(v, fire = true) { r.value = v; const x = upd(); if (fire && cb) cb(x); } };
+  }
+  function seg(id, cb) {
+    const root = document.getElementById(id), btns = $$('button', root);
+    btns.forEach(b => b.addEventListener('click', () => { btns.forEach(x => x.classList.remove('on')); b.classList.add('on'); cb && cb(b.dataset, b); }));
+    return { set(sel) { btns.forEach(x => x.classList.toggle('on', x.dataset.v === String(sel))); }, root };
+  }
+
+  /* ---------- chizish yordamchilari ---------- */
+  function text(ctx, s, x, y, o = {}) {
+    ctx.font = (o.weight || 500) + ' ' + (o.size || 20) + 'px ' + (o.math ? MATH : FONT);
+    if (o.italic) ctx.font = 'italic ' + ctx.font;
+    ctx.fillStyle = o.color || C.mut; ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.base || 'alphabetic';
+    ctx.fillText(s, x, y);
+  }
+  function bob(ctx, x, y, r, c1 = '#9cc8ff', c2 = '#2f7bff') {
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.08, x, y, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.28, c1); g.addColorStop(1, c2);
+    ctx.save(); ctx.shadowColor = c2; ctx.shadowBlur = r * 1.1; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  function block(ctx, x, y, w, h, c1 = '#7ab8ff', c2 = '#2f5fff', rad = 12) {
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    ctx.save(); ctx.shadowColor = c2; ctx.shadowBlur = 24; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, rad) : ctx.rect(x, y, w, h); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + .5, y + .5, w - 1, h - 1, rad) : ctx.rect(x, y, w, h); ctx.stroke();
+  }
+  function spring(ctx, x1, y1, x2, y2, coils, w, color = '#cfe0ff', lw = 3.4) {
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+    const lead = Math.min(22, L * 0.12), n = coils * 2;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+    for (let i = 1; i < n; i++) {
+      const t = lead + (L - 2 * lead) * i / n, s = (i % 2 ? 1 : -1) * w;
+      ctx.lineTo(x1 + ux * t + nx * s, y1 + uy * t + ny * s);
+    }
+    ctx.lineTo(x2 - ux * lead, y2 - uy * lead); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+  }
+  function panel(ctx, x, y, w, h, r = 16) {
+    ctx.fillStyle = 'rgba(2,5,24,.55)'; ctx.strokeStyle = 'rgba(150,180,255,.16)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); ctx.fill(); ctx.stroke();
+  }
+  function dashed(ctx, x1, y1, x2, y2, color = C.axis, on = 7, off = 7, lw = 1.5) {
+    ctx.save(); ctx.setLineDash([on, off]); ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+  }
+  function arrow(ctx, x1, y1, x2, y2, color, lw = 3, head = 12) {
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 - Math.cos(a) * head * .6, y2 - Math.sin(a) * head * .6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - head * Math.cos(a - .42), y2 - head * Math.sin(a - .42)); ctx.lineTo(x2 - head * Math.cos(a + .42), y2 - head * Math.sin(a + .42)); ctx.closePath(); ctx.fill();
+  }
+  function gridBox(ctx, x, y, w, h, nx, ny) {
+    panel(ctx, x, y, w, h);
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 1; i < nx; i++) { const gx = x + w * i / nx; ctx.moveTo(gx, y); ctx.lineTo(gx, y + h); }
+    for (let j = 1; j < ny; j++) { const gy = y + h * j / ny; ctx.moveTo(x, gy); ctx.lineTo(x + w, gy); }
+    ctx.stroke();
+  }
+  function glowLine(ctx, pts, color, lw = 3.5) {
+    if (pts.length < 2) return;
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); ctx.restore();
+  }
+  function dot(ctx, x, y, r, color) {
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 22; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * .45, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  const piStr = v => (Math.abs(v) < 0.005 ? '0' : v.toFixed(2) + 'π');
+  const sgn = v => (v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
+
+  window.SimKit = { TAU, PI, $, $$, C, clamp, FONT, MATH, mk, bind, seg, text, bob, block, spring, panel, dashed, arrow, gridBox, glowLine, dot, piStr, sgn, Sims };
+
+  /* =========================================================
+     1. SARLAVHA — mayatniklar to‘lqini
+     ========================================================= */
+  Sims['s-title'] = {
+    init() { this.o = mk('c-title'); this.t = 0; },
+    frame(dt) {
+      this.t += dt;
+      const { ctx, w, h } = this.o, t = this.t;
+      ctx.clearRect(0, 0, w, h);
+      const n = 21, mx = 56, cy = h / 2, A = h * 0.38;
+      [-1, 0, 1].forEach(f => dashed(ctx, mx - 24, cy + f * A, w - mx + 24, cy + f * A, 'rgba(130,160,255,.16)', 6, 9, 1));
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const x = mx + i * (w - 2 * mx) / (n - 1), f = (12 + i) / 30;
+        pts.push([x, cy + A * Math.cos(TAU * f * t), f, i]);
+      }
+      const lg = ctx.createLinearGradient(0, 0, w, 0);
+      lg.addColorStop(0, '#2fe0ff'); lg.addColorStop(0.5, '#3d8bff'); lg.addColorStop(1, '#9b6bff');
+      ctx.save(); ctx.shadowColor = '#3d8bff'; ctx.shadowBlur = 12; ctx.strokeStyle = lg; ctx.lineWidth = 2.5; ctx.beginPath();
+      pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); ctx.restore();
+      pts.forEach(([x, y, f, i]) => {
+        const hue = 192 + i * 5;
+        ctx.strokeStyle = 'hsla(' + hue + ',90%,70%,.14)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x, y); ctx.stroke();
+        for (let k = 7; k >= 1; k--) {
+          const yy = cy + A * Math.cos(TAU * f * (t - k * 0.028));
+          ctx.fillStyle = 'hsla(' + hue + ',95%,66%,' + (0.055 * (8 - k)) + ')';
+          ctx.beginPath(); ctx.arc(x, yy, 11 - k * 0.7, 0, TAU); ctx.fill();
+        }
+        ctx.save(); ctx.shadowColor = 'hsl(' + hue + ',95%,60%)'; ctx.shadowBlur = 22; ctx.fillStyle = 'hsl(' + hue + ',95%,68%)';
+        ctx.beginPath(); ctx.arc(x, y, 12, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x - 3, y - 3, 4, 0, TAU); ctx.fill(); ctx.restore();
+      });
+    }
+  };
+
+  /* =========================================================
+     3. TUSHUNCHA — uch xil tebranish sistemasi
+     ========================================================= */
+  Sims['s-concept'] = {
+    init() {
+      const o = this.o = mk('c-concept');
+      this.s = [{ p: 0, v: 0 }, { p: 0, v: 0 }, { p: 0, v: 0 }];
+      this.W = [2.7, 3.4, 5.0]; this.drag = -1; this.fric = false;
+      this.g = { px: 167, py: 120, L: 340, sx: 500, sTop: 120, sEq: 430, sK: 170, bx: 700, by: 330, bL: 260, bK: 150 };
+      const c = o.c;
+      c.addEventListener('pointerdown', e => { const q = o.pt(e), i = this.hit(q); if (i >= 0) { this.drag = i; c.setPointerCapture(e.pointerId); this.setP(i, q); } });
+      c.addEventListener('pointermove', e => { const q = o.pt(e); if (this.drag >= 0) this.setP(this.drag, q); else c.style.cursor = this.hit(q) >= 0 ? 'grab' : 'default'; });
+      const up = () => { this.drag = -1; };
+      c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+      $('#b-kick').onclick = () => this.kick();
+      $('#b-fric').onclick = e => {
+        this.fric = !this.fric;
+        e.currentTarget.textContent = `Ishqalanish: ${this.fric ? 'yoqilgan' : "o‘chiq"}`;
+        e.currentTarget.classList.toggle('on', this.fric);
+      };
+    },
+    kick() { this.s[0].p = 0.45; this.s[1].p = 0.8; this.s[2].p = 0.8; this.s.forEach(s => s.v = 0); },
+    pos(i) {
+      const g = this.g, p = this.s[i].p;
+      if (i === 0) return { x: g.px + g.L * Math.sin(p), y: g.py + g.L * Math.cos(p) };
+      if (i === 1) return { x: g.sx, y: g.sEq + p * g.sK };
+      return { x: g.bx + g.bL, y: g.by + p * g.bK };
+    },
+    hit(q) { for (let i = 0; i < 3; i++) { const b = this.pos(i); if (Math.hypot(q.x - b.x, q.y - b.y) < 58) return i; } return -1; },
+    setP(i, q) {
+      const g = this.g;
+      if (i === 0) this.s[0].p = clamp(Math.atan2(q.x - g.px, q.y - g.py), -0.5, 0.5);
+      else if (i === 1) this.s[1].p = clamp((q.y - g.sEq) / g.sK, -1.05, 1.05);
+      else this.s[2].p = clamp((q.y - g.by) / g.bK, -1.05, 1.05);
+      this.s[i].v = 0;
+    },
+    enter() { this.kick(); },
+    frame(dt) {
+      const n = Math.ceil(dt / 0.004), h = dt / n, c = this.fric ? 0.45 : 0;
+      for (let i = 0; i < 3; i++) {
+        if (this.drag === i) continue;
+        const s = this.s[i], W = this.W[i];
+        for (let k = 0; k < n; k++) { const a = (i === 0 ? -W * W * Math.sin(s.p) : -W * W * s.p) - c * s.v; s.v += a * h; s.p += s.v * h; }
+      }
+      const { ctx, w, h: H } = this.o, g = this.g;
+      ctx.clearRect(0, 0, w, H);
+      // --- mayatnik
+      ctx.strokeStyle = 'rgba(130,160,255,.2)'; ctx.lineWidth = 2; ctx.setLineDash([4, 8]);
+      ctx.beginPath(); ctx.arc(g.px, g.py, g.L, PI / 2 - 0.5, PI / 2 + 0.5); ctx.stroke(); ctx.setLineDash([]);
+      dashed(ctx, g.px, g.py, g.px, g.py + g.L + 70, C.axis);
+      text(ctx, 'muvozanat', g.px + 10, g.py + g.L + 66, { size: 19, color: C.mut });
+      block(ctx, g.px - 70, g.py - 22, 140, 14, '#aab8ff', '#4a5cd0', 7);
+      const b0 = this.pos(0);
+      ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(g.px, g.py - 8); ctx.lineTo(b0.x, b0.y); ctx.stroke();
+      bob(ctx, b0.x, b0.y, 28);
+      text(ctx, 'Matematik mayatnik', g.px, 690, { size: 24, color: '#dbe6ff', align: 'center', weight: 600 });
+      // --- prujina
+      dashed(ctx, g.sx - 135, g.sEq, g.sx + 135, g.sEq, C.axis);
+      text(ctx, 'muvozanat', g.sx + 142, g.sEq + 6, { size: 19, color: C.mut });
+      block(ctx, g.sx - 80, g.sTop - 22, 160, 14, '#aab8ff', '#4a5cd0', 7);
+      const b1 = this.pos(1);
+      spring(ctx, g.sx, g.sTop - 8, g.sx, b1.y - 36, 11, 24);
+      block(ctx, g.sx - 52, b1.y - 36, 104, 72, '#9cc8ff', '#2f5fff');
+      text(ctx, 'Prujinali mayatnik', g.sx, 690, { size: 24, color: '#dbe6ff', align: 'center', weight: 600 });
+      // --- elastik sterjen
+      dashed(ctx, g.bx, g.by, g.bx + g.bL + 70, g.by, C.axis);
+      text(ctx, 'muvozanat', g.bx + g.bL + 4, g.by - 14, { size: 19, color: C.mut, align: 'center' });
+      block(ctx, g.bx - 34, g.by - 90, 34, 180, '#aab8ff', '#4a5cd0', 6);
+      const b2 = this.pos(2), d = b2.y - g.by, pts = [];
+      for (let i = 0; i <= 32; i++) { const s = i / 32; pts.push([g.bx + g.bL * s, g.by + d * (3 * s * s - s * s * s) / 2]); }
+      glowLine(ctx, pts, '#cfe0ff', 11);
+      bob(ctx, b2.x, b2.y, 26, '#ffb3ec', '#9b6bff');
+      text(ctx, 'Elastik sterjen', g.bx + g.bL / 2 + 20, 690, { size: 24, color: '#dbe6ff', align: 'center', weight: 600 });
+    }
+  };
+
+  /* =========================================================
+     4. TURLARI — mini to‘lqin grafiklari
+     ========================================================= */
+  Sims['s-types'] = {
+    init() {
+      const f = {
+        free: x => Math.exp(-0.7 * x) * Math.cos(TAU * 3.2 * x),
+        forced: x => (1 - Math.exp(-4 * x)) * Math.cos(TAU * 3.2 * x),
+        auto: x => (1 - Math.exp(-5 * x)) * Math.cos(TAU * 3.2 * x),
+        decay: x => Math.exp(-3.2 * x) * Math.cos(TAU * 3.2 * x),
+        steady: x => Math.cos(TAU * 3.2 * x),
+        sine: x => Math.sin(TAU * 3.2 * x),
+        nonharm: x => { const u = TAU * 3.2 * x; return (Math.sin(u) + Math.sin(3 * u) / 3 + Math.sin(5 * u) / 5 + Math.sin(7 * u) / 7) * 0.9; },
+        mech: x => Math.cos(TAU * 3.2 * x),
+        em: x => Math.sin(TAU * 4.2 * x) * (0.6 + 0.4 * Math.cos(TAU * 0.4 * x))
+      };
+      const cols = ['#2fe0ff', '#7ab8ff', '#b79bff', '#ff6bd6'];
+      $$('.mw').forEach((svg, i) => {
+        const fn = f[svg.dataset.w]; let d = '';
+        for (let k = 0; k <= 160; k++) { const x = k / 160, y = 40 - 32 * fn(x); d += (k ? 'L' : 'M') + (8 + x * 224).toFixed(1) + ',' + y.toFixed(1); }
+        const col = cols[Math.floor(i / 3) % 4] || cols[0];
+        svg.innerHTML = '<line x1="8" y1="40" x2="232" y2="40" stroke="rgba(150,180,255,.25)" stroke-dasharray="4 5"/><path pathLength="1" d="' + d + '" stroke="' + (svg.dataset.w === 'steady' || svg.dataset.w === 'sine' ? '#2fe0ff' : (svg.dataset.w === 'decay' ? '#ff6bd6' : col)) + '"/>';
+      });
+    }
+  };
+
+  /* =========================================================
+     5. ERKIN TEBRANISHLAR
+     ========================================================= */
+  Sims['s-free'] = {
+    init() {
+      const o = this.o = mk('c-free');
+      this.m = 1; this.k = 20; this.x = 0.4; this.v = 0; this.hist = []; this.t = 0; this.drag = false;
+      this.upd = () => {
+        const T = TAU * Math.sqrt(this.m / this.k);
+        $('#ro-fT').innerHTML = T.toFixed(2) + '<em>s</em>'; $('#ro-fnu').innerHTML = (1 / T).toFixed(2) + '<em>Hz</em>';
+      };
+      bind('r-fm', v => v.toFixed(1) + ' kg', v => { this.m = v; this.rst(); this.upd(); });
+      bind('r-fk', v => v + ' N/m', v => { this.k = v; this.rst(); this.upd(); });
+      $('#b-fkick').onclick = () => this.rst();
+      const c = o.c, mv = e => { const q = o.pt(e); this.x = clamp((q.x - 600) / 330, -0.5, 0.5); this.v = 0; };
+      c.addEventListener('pointerdown', e => { const q = o.pt(e); if (q.y < 330) { this.drag = true; c.setPointerCapture(e.pointerId); mv(e); this.hist = []; } });
+      c.addEventListener('pointermove', e => { if (this.drag) mv(e); });
+      const up = () => { this.drag = false; }; c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+    },
+    rst() { this.x = 0.4; this.v = 0; this.hist = []; this.t = 0; },
+    enter() { this.rst(); this.upd(); },
+    frame(dt) {
+      const { ctx, w, h } = this.o, k = this.k, m = this.m;
+      if (!this.drag) {
+        const n = Math.ceil(dt / 0.004), hh = dt / n;
+        for (let i = 0; i < n; i++) { this.v += (-k / m * this.x) * hh; this.x += this.v * hh; }
+      }
+      this.t += dt; this.hist.push({ t: this.t, x: this.x });
+      while (this.hist.length && this.t - this.hist[0].t > 8.3) this.hist.shift();
+      ctx.clearRect(0, 0, w, h);
+      // mexanizm
+      const xEq = 600, S = 330, xm = xEq + this.x * S, mw = 126 + m * 10;
+      ctx.fillStyle = 'rgba(130,160,255,.12)'; ctx.fillRect(20, 224, w - 40, 6);
+      block(ctx, 40, 70, 30, 156, '#aab8ff', '#4a5cd0', 6);
+      dashed(ctx, xEq, 46, xEq, 262, C.axis);
+      text(ctx, 'x = 0', xEq, 38, { size: 21, color: C.mut, align: 'center' });
+      spring(ctx, 70, 148, xm - mw / 2, 148, 14, 24 - 0.1 * Math.min(0, 0));
+      block(ctx, xm - mw / 2, 148 - 38, mw, 76, '#9cc8ff', '#2f5fff');
+      text(ctx, 'm = ' + m.toFixed(1) + ' kg', xm, 154, { size: 22, color: '#02122b', align: 'center', weight: 700 });
+      [-0.5, 0.5].forEach(s => { dashed(ctx, xEq + s * S, 262, xEq + s * S, 280, C.mut, 3, 3, 1.5); });
+      text(ctx, "chetki vaziyat", xEq - 0.5 * S, 305, { size: 19, color: C.mut, align: 'center' });
+      text(ctx, "chetki vaziyat", xEq + 0.5 * S, 305, { size: 19, color: C.mut, align: 'center' });
+      // energiya
+      const Em = 0.5 * k * 0.25, Ep = 0.5 * k * this.x * this.x, Ek = 0.5 * m * this.v * this.v;
+      const bx = 230, bw = 700;
+      [['Kinetik energiya  E', Ek, C.violet2, 330, 'k'], ['Potensial energiya  E', Ep, C.cyan, 366, 'p'], ['To‘liq energiya  E', Ek + Ep, '#ffffff', 402, '']].forEach(r => {
+        text(ctx, r[0], bx - 14, r[3] + 17, { size: 20, color: '#cfdcff', align: 'right' });
+        if (r[4]) text(ctx, r[4], bx - 14 + 0, r[3] + 22, { size: 14, color: '#cfdcff', align: 'left' });
+        ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.roundRect(bx, r[3], bw, 24, 12); ctx.fill();
+        const ww = Math.max(2, bw * Math.min(1, r[1] / Em));
+        const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, r[2]); g.addColorStop(1, r[2] + 'aa');
+        ctx.save(); ctx.shadowColor = r[2]; ctx.shadowBlur = 14; ctx.fillStyle = r[2]; ctx.beginPath(); ctx.roundRect(bx, r[3], ww, 24, 12); ctx.fill(); ctx.restore();
+        text(ctx, (r[1] * 1000).toFixed(0) + ' mJ', bx + bw + 14, r[3] + 19, { size: 20, color: '#fff', weight: 600 });
+      });
+      // grafik
+      const gx = 70, gy = 450, gw = 1000, gh = 250, cy = gy + gh / 2;
+      gridBox(ctx, gx, gy, gw, gh, 8, 4);
+      dashed(ctx, gx, cy, gx + gw, cy, C.axis, 1, 0, 1.5);
+      text(ctx, 'x, m', gx - 8, gy + 18, { size: 19, color: C.mut, align: 'right' });
+      text(ctx, '+0.5', gx - 8, gy + 24, { size: 17, color: C.mut, align: 'right', base: 'top' });
+      text(ctx, 't', gx + gw - 6, cy - 8, { size: 20, color: C.mut, align: 'right', math: true, italic: true });
+      const pts = this.hist.map(s => [gx + gw * (1 - (this.t - s.t) / 8), cy - s.x / 0.5 * (gh / 2 - 14)]).filter(p => p[0] >= gx);
+      glowLine(ctx, pts, C.cyan, 3.5);
+      if (pts.length) dot(ctx, pts[pts.length - 1][0], pts[pts.length - 1][1], 8, C.cyan);
+    }
+  };
+
+  /* =========================================================
+     6. MAJBURIY TEBRANISHLAR VA REZONANS
+     ========================================================= */
+  Sims['s-forced'] = {
+    init() {
+      const o = this.o = mk('c-forced');
+      this.w0 = 4; this.r = 0.5; this.z = 0.15; this.x = 0; this.v = 0; this.th = 0; this.hist = []; this.t = 0;
+      this.rs = bind('r-fr', v => v.toFixed(2), v => { this.r = v; this.badge(); });
+      bind('r-fz', v => v.toFixed(2), v => { this.z = v; this.badge(); });
+      $('#b-res').onclick = () => this.rs.set(1);
+      this.badge();
+    },
+    R(r, z) { return 1 / Math.sqrt((1 - r * r) ** 2 + (2 * z * r) ** 2); },
+    badge() {
+      const b = $('#fres'), d = Math.abs(this.r - 1);
+      if (d < 0.08) { b.className = 'badge warn'; b.textContent = 'REZONANS!'; }
+      else if (d < 0.28) { b.className = 'badge info'; b.textContent = 'Rezonansga yaqin'; }
+      else { b.className = 'badge info'; b.textContent = 'Rezonansdan uzoq'; }
+    },
+    enter() { this.x = 0; this.v = 0; this.th = 0; this.hist = []; this.t = 0; this.badge(); },
+    frame(dt) {
+      const w0 = this.w0, W = this.r * w0, z = this.z, U = 34;
+      const n = Math.ceil(dt / 0.004), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        this.th += W * h; const u = U * Math.cos(this.th);
+        const a = -2 * z * w0 * this.v - w0 * w0 * (this.x - u);
+        this.v += a * h; this.x += this.v * h;
+      }
+      this.t += dt; const u = U * Math.cos(this.th);
+      this.hist.push({ t: this.t, x: this.x, u }); while (this.hist.length && this.t - this.hist[0].t > 7) this.hist.shift();
+      let mx = 0; for (let i = this.hist.length - 1; i >= 0 && this.t - this.hist[i].t < 3.6; i--) mx = Math.max(mx, Math.abs(this.hist[i].x));
+      $('#ro-fA').innerHTML = (mx / U * 2).toFixed(1) + '<em>sm</em>'; $('#ro-fR').innerHTML = (mx / U).toFixed(2) + '<em>×</em>';
+      const { ctx, w, h: H } = this.o; ctx.clearRect(0, 0, w, H);
+      // ---- mexanizm
+      const cx = 130, cy = 160, xM0 = 760, yM = 160, theory = this.R(this.r, z), res = clamp(1 - Math.abs(this.r - 1) / 0.35, 0, 1);
+      ctx.fillStyle = 'rgba(130,160,255,.12)'; ctx.fillRect(20, 222, w - 40, 6);
+      ctx.strokeStyle = 'rgba(190,210,255,.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 62, 0, TAU); ctx.stroke();
+      const g1 = ctx.createRadialGradient(cx, cy, 5, cx, cy, 62); g1.addColorStop(0, 'rgba(139,92,246,.35)'); g1.addColorStop(1, 'rgba(47,123,255,.08)'); ctx.fillStyle = g1; ctx.fill();
+      const px = cx + U * Math.cos(this.th), py = cy + U * Math.sin(this.th);
+      ctx.strokeStyle = C.violet2; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+      const xB = px + 200;
+      ctx.fillStyle = 'rgba(2,5,24,.7)'; ctx.strokeStyle = 'rgba(190,210,255,.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(xB - 30, cy - 78, 60, 156, 10); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.moveTo(px, cy - 62); ctx.lineTo(px, cy + 62); ctx.stroke();
+      dot(ctx, px, py, 9, C.pink);
+      dot(ctx, cx, cy, 5, '#fff');
+      text(ctx, 'majburlovchi manba', cx, cy + 100, { size: 20, color: C.mut, align: 'center' });
+      const xm = xM0 + this.x;
+      spring(ctx, xB + 30, cy, xm - 52, cy, 13, 22);
+      if (res > 0.2) { ctx.save(); ctx.shadowColor = C.pink; ctx.shadowBlur = 40 * res; }
+      block(ctx, xm - 52, cy - 42, 104, 84, res > 0.2 ? '#ffc4f0' : '#9cc8ff', res > 0.2 ? '#c13fb0' : '#2f5fff');
+      if (res > 0.2) ctx.restore();
+      dashed(ctx, xM0, 70, xM0, 250, C.axis, 5, 6, 1.2);
+      // ---- rezonans egri chizig‘i
+      const gx = 60, gy = 340, gw = 470, gh = 330;
+      let Rmax = 1.2; for (let r = 0; r <= 2; r += 0.02) Rmax = Math.max(Rmax, this.R(r, z));
+      Rmax *= 1.12;
+      gridBox(ctx, gx, gy, gw, gh, 4, 4);
+      text(ctx, 'Rezonans egri chizig‘i', gx, gy - 14, { size: 22, color: '#dbe6ff', weight: 600 });
+      text(ctx, 'A/U', gx + 8, gy + 24, { size: 19, color: C.mut });
+      text(ctx, 'Ω / ω₀', gx + gw - 8, gy + gh - 8, { size: 19, color: C.mut, align: 'right' });
+      const rx = r => gx + gw * r / 2, ry = R => gy + gh - gh * R / Rmax;
+      dashed(ctx, rx(1), gy, rx(1), gy + gh, 'rgba(255,107,214,.5)', 5, 6, 1.5);
+      ['0', '1', '2'].forEach((s, i) => text(ctx, s, gx + gw * i / 2, gy + gh + 24, { size: 19, color: C.mut, align: 'center' }));
+      const cp = []; for (let r = 0; r <= 2.001; r += 0.01) cp.push([rx(r), ry(this.R(r, z))]);
+      ctx.save(); ctx.beginPath(); cp.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.lineTo(rx(2), gy + gh); ctx.lineTo(rx(0), gy + gh); ctx.closePath();
+      const fg = ctx.createLinearGradient(0, gy, 0, gy + gh); fg.addColorStop(0, 'rgba(61,139,255,.35)'); fg.addColorStop(1, 'rgba(61,139,255,0)'); ctx.fillStyle = fg; ctx.fill(); ctx.restore();
+      glowLine(ctx, cp, C.blue, 3.5);
+      dot(ctx, rx(this.r), ry(theory), 10, res > 0.5 ? C.pink : C.cyan);
+      // ---- x(t) grafigi
+      const tx = 600, ty = 340, tw = 490, th = 330, tc = ty + th / 2;
+      gridBox(ctx, tx, ty, tw, th, 7, 4);
+      text(ctx, 'Siljish x(t) va manba u(t)', tx, ty - 14, { size: 22, color: '#dbe6ff', weight: 600 });
+      dashed(ctx, tx, tc, tx + tw, tc, C.axis, 1, 0, 1.5);
+      const sc = (th / 2 - 10) / 230;
+      const px2 = s => tx + tw * (1 - (this.t - s.t) / 6.5);
+      const pu = this.hist.map(s => [px2(s), tc - s.u * sc * 2]).filter(p => p[0] >= tx);
+      const pxs = this.hist.map(s => [px2(s), tc - s.x * sc]).filter(p => p[0] >= tx);
+      ctx.save(); ctx.setLineDash([6, 6]); glowLine(ctx, pu, C.violet2, 2.5); ctx.restore();
+      glowLine(ctx, pxs, res > 0.5 ? C.pink : C.cyan, 3.5);
+      text(ctx, '— x (jism)', tx + 10, ty + th - 14, { size: 19, color: C.cyan });
+      text(ctx, '- - u (manba)', tx + 150, ty + th - 14, { size: 19, color: C.violet2 });
+    }
+  };
+
+  /* =========================================================
+     7. SO‘NUVCHI VA SO‘NMAS TEBRANISHLAR
+     ========================================================= */
+  Sims['s-damped'] = {
+    init() {
+      const o = this.o = mk('c-damp');
+      this.mode = 1; this.g = 0.2; this.W = PI; this.A0 = 0.55;
+      this.rst = () => { this.x = this.A0; this.v = 0; this.hist = []; this.t = 0; this.ah = []; };
+      this.rst();
+      bind('r-dg', v => v.toFixed(2), v => { this.g = v; });
+      seg('seg-dm', d => { this.mode = +d.v; this.rst(); });
+      $('#b-dreset').onclick = () => this.rst();
+    },
+    enter() { this.rst(); },
+    frame(dt) {
+      const W = this.W, g = this.g, mode = this.mode, A0 = this.A0;
+      const n = Math.ceil(dt / 0.004), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        let damp = 0;
+        if (mode === 1) damp = 2 * g;
+        else if (mode === 2) { const A2 = this.x * this.x + (this.v / W) ** 2; damp = 2 * g * (A2 / (A0 * A0) - 1); }
+        const a = -W * W * this.x - damp * this.v; this.v += a * h; this.x += this.v * h;
+      }
+      this.t += dt; const A = Math.sqrt(this.x * this.x + (this.v / W) ** 2);
+      this.hist.push({ t: this.t, x: this.x, A }); while (this.hist.length && this.t - this.hist[0].t > 20) this.hist.shift();
+      const E = (A / A0) ** 2 * 100;
+      $('#ro-dA').innerHTML = (A / A0 * 100).toFixed(0) + '<em>% A₀</em>'; $('#ro-dE').innerHTML = E.toFixed(0) + '<em>% E₀</em>';
+      const { ctx, w, h: H } = this.o; ctx.clearRect(0, 0, w, H);
+      // mayatnik
+      const px = 215, py = 110, L = 340, bx = px + L * Math.sin(this.x), by = py + L * Math.cos(this.x);
+      block(ctx, px - 80, py - 22, 160, 14, '#aab8ff', '#4a5cd0', 7);
+      dashed(ctx, px, py, px, py + L + 60, C.axis);
+      ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py - 8); ctx.lineTo(bx, by); ctx.stroke();
+      bob(ctx, bx, by, 30, mode === 2 ? '#ffe1a0' : '#9cc8ff', mode === 2 ? '#e0932f' : '#2f7bff');
+      if (mode === 2) {
+        const pulse = 0.5 + 0.5 * Math.sin(this.t * 6);
+        ctx.save(); ctx.shadowColor = C.amber; ctx.shadowBlur = 20 + 14 * pulse; ctx.fillStyle = C.amber;
+        ctx.beginPath(); ctx.moveTo(px + 100, py - 40); ctx.lineTo(px + 82, py - 6); ctx.lineTo(px + 96, py - 6); ctx.lineTo(px + 86, py + 28); ctx.lineTo(px + 120, py - 14); ctx.lineTo(px + 104, py - 14); ctx.closePath(); ctx.fill(); ctx.restore();
+        text(ctx, 'energiya manbai', px + 134, py - 4, { size: 20, color: C.amber });
+      }
+      // energiya
+      text(ctx, 'Energiya', 40, 560, { size: 22, color: '#dbe6ff', weight: 600 });
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.roundRect(40, 578, 370, 30, 15); ctx.fill();
+      ctx.save(); ctx.shadowColor = C.amber; ctx.shadowBlur = 14; ctx.fillStyle = mode === 2 ? C.amber : C.cyan; ctx.beginPath(); ctx.roundRect(40, 578, Math.max(4, 370 * Math.min(1, E / 100)), 30, 15); ctx.fill(); ctx.restore();
+      text(ctx, 'E ∝ A²', 40, 645, { size: 24, color: C.mut, math: true, italic: true });
+      // grafik
+      const gx = 470, gy = 70, gw = 600, gh = 580, cy = gy + gh / 2, sc = (gh / 2 - 20) / 0.6;
+      gridBox(ctx, gx, gy, gw, gh, 5, 6);
+      dashed(ctx, gx, cy, gx + gw, cy, C.axis, 1, 0, 1.5);
+      text(ctx, 'x(t)', gx + 12, gy + 28, { size: 22, color: C.mut, math: true, italic: true });
+      text(ctx, 'oxirgi 20 s', gx + gw - 12, gy + gh - 12, { size: 19, color: C.mut, align: 'right' });
+      const X = s => gx + gw * (1 - (this.t - s.t) / 20);
+      const top = [], bot = [], xs = [];
+      this.hist.forEach(s => { const px2 = X(s); if (px2 < gx) return; top.push([px2, cy - s.A * sc]); bot.push([px2, cy + s.A * sc]); xs.push([px2, cy - s.x * sc]); });
+      ctx.save(); ctx.setLineDash([8, 7]); glowLine(ctx, top, C.amber, 2.2); glowLine(ctx, bot, C.amber, 2.2); ctx.restore();
+      glowLine(ctx, xs, mode === 2 ? C.amber : C.cyan, 3.2);
+      if (xs.length) dot(ctx, xs[xs.length - 1][0], xs[xs.length - 1][1], 8, mode === 2 ? C.amber : C.cyan);
+      text(ctx, '- - amplituda (o‘ram)', gx + 12, gy + gh - 12, { size: 19, color: C.amber });
+    }
+  };
+
+  /* =========================================================
+     8. GARMONIK TEBRANISHLAR — aylana va grafik
+     ========================================================= */
+  Sims['s-harmonic'] = {
+    init() {
+      const o = this.o = mk('c-harm');
+      this.A = 6; this.nu = 0.5; this.p0 = 0; this.tau = 0; this.play = true; this.showV = false; this.showA = false;
+      bind('r-ha', v => v.toFixed(1) + ' sm', v => { this.A = v; });
+      bind('r-hn', v => v.toFixed(2) + ' Hz', v => { this.nu = v; });
+      bind('r-hp', v => piStr(v), v => { this.p0 = v * PI; });
+      $('#k-hv').onchange = e => { this.showV = e.target.checked; };
+      $('#k-ha').onchange = e => { this.showA = e.target.checked; };
+      $('#b-hplay').onclick = e => { this.play = !this.play; e.currentTarget.textContent = this.play ? '⏸ Pauza' : '▶ Davom'; };
+      const c = o.c, sc = e => { const q = o.pt(e); if (q.x > 460) { this.tau = clamp((q.x - 480) / 620 * 6, 0, 6); } };
+      let dr = false;
+      c.addEventListener('pointerdown', e => { dr = true; c.setPointerCapture(e.pointerId); sc(e); });
+      c.addEventListener('pointermove', e => { if (dr) sc(e); });
+      c.addEventListener('pointerup', () => { dr = false; });
+    },
+    enter() { this.tau = 0; },
+    frame(dt) {
+      if (this.play) { this.tau += dt; if (this.tau > 6) this.tau = 0; }
+      const { ctx, w, h } = this.o, A = this.A, K = 16, om = TAU * this.nu, p0 = this.p0, tau = this.tau;
+      ctx.clearRect(0, 0, w, h);
+      const cx = 235, cy = 330, R = A * K, th = om * tau + p0;
+      // aylana
+      ctx.strokeStyle = 'rgba(150,180,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+      const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R); rg.addColorStop(0, 'rgba(47,123,255,.05)'); rg.addColorStop(1, 'rgba(139,92,246,.2)'); ctx.fillStyle = rg; ctx.fill();
+      dashed(ctx, cx, cy - 175, cx, cy + 175, C.axis, 5, 6, 1.2); dashed(ctx, cx - 175, cy, cx + 175, cy, C.axis, 5, 6, 1.2);
+      text(ctx, '+A', cx + 12, cy - R - 8, { size: 20, color: C.blue }); text(ctx, '−A', cx + 12, cy + R + 22, { size: 20, color: C.blue });
+      // boshlang‘ich faza yoyi
+      if (Math.abs(p0) > 0.02) {
+        ctx.strokeStyle = C.violet2; ctx.lineWidth = 3; ctx.beginPath();
+        const a0 = -PI / 2, a1 = -PI / 2 + p0; ctx.arc(cx, cy, 36, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke();
+        text(ctx, 'φ₀', cx + 44 * Math.sin(p0 / 2) - 10, cy - 44 * Math.cos(p0 / 2) - 6, { size: 22, color: C.violet2, math: true, italic: true });
+      }
+      const tx = cx + R * Math.sin(th), ty = cy - R * Math.cos(th);
+      arrow(ctx, cx, cy, tx, ty, C.cyan, 4, 16);
+      dashed(ctx, tx, ty, cx, ty, 'rgba(47,224,255,.5)', 4, 5, 1.5);
+      dot(ctx, cx, ty, 8, C.blue);
+      dot(ctx, tx, ty, 9, C.cyan);
+      text(ctx, 'ωt + φ₀ = ' + piStr(((th / PI) % 2 + 2) % 2), cx, cy + 215, { size: 23, color: '#dbe6ff', align: 'center', weight: 600 });
+      // grafik
+      const gx = 480, gw = 620, gy = 90, gh = 480, gc = cy, sc2 = A * K;
+      gridBox(ctx, gx, gy, gw, gh, 6, 6);
+      dashed(ctx, gx, gc, gx + gw, gc, C.axis, 1, 0, 1.5);
+      for (let i = 0; i <= 6; i++) text(ctx, i + ' s', gx + gw * i / 6, gy + gh + 28, { size: 19, color: C.mut, align: 'center' });
+      text(ctx, 'x, sm', gx + 10, gy + 26, { size: 20, color: C.mut });
+      const fx = t => A * K * Math.cos(om * t + p0), fv = t => -A * K * Math.sin(om * t + p0), fa = t => -A * K * Math.cos(om * t + p0);
+      const curve = (f, col) => { const p = []; for (let i = 0; i <= 240; i++) { const t = 6 * i / 240; p.push([gx + gw * t / 6, gc - f(t)]); } glowLine(ctx, p, col, 3.4); };
+      curve(fx, C.blue);
+      if (this.showV) curve(fv, C.violet2);
+      if (this.showA) curve(fa, C.cyan);
+      const X = gx + gw * tau / 6;
+      dashed(ctx, X, gy, X, gy + gh, 'rgba(255,255,255,.3)', 4, 5, 1.2);
+      dashed(ctx, tx, ty, X, gc - fx(tau), 'rgba(47,224,255,.5)', 4, 5, 1.5);
+      dot(ctx, X, gc - fx(tau), 9, C.blue);
+      if (this.showV) dot(ctx, X, gc - fv(tau), 8, C.violet2);
+      if (this.showA) dot(ctx, X, gc - fa(tau), 8, C.cyan);
+      // o‘qish
+      const xv = A * Math.cos(th), vv = -A * om * Math.sin(th), av = -om * om * xv;
+      panel(ctx, gx, 616, gw, 90);
+      text(ctx, 't = ' + tau.toFixed(2) + ' s', gx + 18, 650, { size: 24, color: '#fff', weight: 600 });
+      text(ctx, 'x = ' + sgn(xv) + ' sm', gx + 190, 650, { size: 24, color: C.blue, weight: 600 });
+      text(ctx, 'v = ' + sgn(vv) + ' sm/s', gx + 360, 650, { size: 24, color: C.violet2, weight: 600 });
+      text(ctx, 'a = ' + sgn(av) + ' sm/s²', gx + 18, 688, { size: 24, color: C.cyan, weight: 600 });
+      text(ctx, this.showV || this.showA ? 'v va a grafiklari normallangan' : 'grafikni sichqoncha bilan suring', gx + gw - 14, 688, { size: 19, color: C.mut, align: 'right' });
+    }
+  };
+
+  /* =========================================================
+     9. AMPLITUDA
+     ========================================================= */
+  Sims['s-amp'] = {
+    init() {
+      const o = this.o = mk('c-amp');
+      this.A = 5; this.t = 0;
+      this.sl = bind('r-aa', v => v.toFixed(1) + ' sm', v => { this.A = v; });
+      $('#b-a2').onclick = () => this.sl.set(2); $('#b-a5').onclick = () => this.sl.set(5); $('#b-a8').onclick = () => this.sl.set(9);
+    },
+    enter() { this.t = 0; },
+    frame(dt) {
+      this.t += dt;
+      const { ctx, w, h } = this.o, A = this.A, nu = 0.5, om = TAU * nu, S = 32, cx = 590;
+      ctx.clearRect(0, 0, w, h);
+      $('#ro-a2A').innerHTML = (2 * A).toFixed(1) + '<em>sm</em>'; $('#ro-aE').innerHTML = (A * A).toFixed(0) + '<em>mJ</em>';
+      const x = A * Math.cos(om * this.t), xm = cx + x * S;
+      // mexanizm
+      ctx.fillStyle = 'rgba(130,160,255,.12)'; ctx.fillRect(20, 250, w - 40, 6);
+      block(ctx, 40, 90, 30, 164, '#aab8ff', '#4a5cd0', 6);
+      spring(ctx, 70, 170, xm - 44, 170, 15, 24);
+      block(ctx, xm - 44, 130, 88, 80, '#9cc8ff', '#2f5fff');
+      // chizg‘ich
+      const ry = 300; ctx.strokeStyle = C.axis; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10 * S - 10, ry); ctx.lineTo(cx + 10 * S + 10, ry); ctx.stroke();
+      for (let i = -10; i <= 10; i++) { const big = i % 5 === 0; ctx.beginPath(); ctx.moveTo(cx + i * S, ry); ctx.lineTo(cx + i * S, ry + (big ? 16 : 9)); ctx.stroke(); if (big) text(ctx, i + '', cx + i * S, ry + 38, { size: 19, color: C.mut, align: 'center' }); }
+      text(ctx, 'sm', cx + 10 * S + 40, ry + 6, { size: 19, color: C.mut });
+      dashed(ctx, cx, 60, cx, ry, C.axis, 5, 6, 1.2);
+      [-1, 1].forEach(s => dashed(ctx, cx + s * A * S, 70, cx + s * A * S, ry, C.blue, 6, 5, 2));
+      text(ctx, '−A', cx - A * S, 62, { size: 24, color: C.blue, align: 'center', weight: 700 }); text(ctx, '+A', cx + A * S, 62, { size: 24, color: C.blue, align: 'center', weight: 700 });
+      arrow(ctx, cx - A * S + 4, 88, cx + A * S - 4, 88, C.amber, 2.5, 11); arrow(ctx, cx + A * S - 4, 88, cx - A * S + 4, 88, C.amber, 2.5, 11);
+      text(ctx, '2A = ' + (2 * A).toFixed(1) + ' sm', cx, 78, { size: 22, color: C.amber, align: 'center', weight: 700 });
+      // grafik
+      const gx = 70, gy = 400, gw = 1000, gh = 300, gc = gy + gh / 2, K = 14;
+      gridBox(ctx, gx, gy, gw, gh, 8, 4);
+      dashed(ctx, gx, gc, gx + gw, gc, C.axis, 1, 0, 1.5);
+      [-1, 1].forEach(s => dashed(ctx, gx, gc - s * A * K, gx + gw, gc - s * A * K, C.blue, 6, 5, 2));
+      text(ctx, '+A', gx - 8, gc - A * K + 6, { size: 20, color: C.blue, align: 'right', weight: 700 }); text(ctx, '−A', gx - 8, gc + A * K + 6, { size: 20, color: C.blue, align: 'right', weight: 700 });
+      const p = []; for (let i = 0; i <= 300; i++) { const tt = this.t - 8 + 8 * i / 300; p.push([gx + gw * i / 300, gc - A * K * Math.cos(om * tt)]); }
+      glowLine(ctx, p, C.cyan, 3.6); dot(ctx, gx + gw, gc - x * K, 8, C.cyan);
+      text(ctx, 'x(t)', gx + 12, gy + 28, { size: 22, color: C.mut, math: true, italic: true });
+    }
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   SIMS 2 — davr, chastota, faza, laboratoriya, tovush, test, xulosa
+   ============================================================ */
+(function () {
+  'use strict';
+  const K = window.SimKit;
+  const { TAU, PI, $, $$, C, clamp, mk, bind, seg, text, bob, block, spring, panel, dashed, arrow, gridBox, glowLine, dot, piStr, sgn, Sims } = K;
+
+  /* =========================================================
+     10. DAVR — mayatniklar va sekundomer
+     ========================================================= */
+  Sims['s-period'] = {
+    init() {
+      const o = this.o = mk('c-period');
+      this.mode = 0; this.l = 1; this.a0 = 10; this.m = 1; this.g = 9.81; this.sm = 1; this.sk = 40; this.hist = []; this.peaks = [];
+      bind('r-pl', v => v.toFixed(2) + ' m', v => { this.l = v; this.rst(); });
+      bind('r-pa', v => v + '°', v => { this.a0 = v; this.rst(); });
+      bind('r-pm', v => v.toFixed(1) + ' kg', v => { this.m = v; });
+      bind('r-sm', v => v.toFixed(1) + ' kg', v => { this.sm = v; this.rst(); });
+      bind('r-sk', v => v + ' N/m', v => { this.sk = v; this.rst(); });
+      const sg = $('#seg-pg');
+      $$('button', sg).forEach(b => b.addEventListener('click', () => { $$('button', sg).forEach(x => x.classList.remove('on')); b.classList.add('on'); this.g = +b.dataset.g; this.rst(); }));
+      seg('seg-pm', d => {
+        this.mode = +d.v; $('#g-pend').style.display = this.mode ? 'none' : ''; $('#g-spr').style.display = this.mode ? '' : 'none'; this.rst();
+      });
+    },
+    Tth() { return this.mode === 0 ? TAU * Math.sqrt(this.l / this.g) : TAU * Math.sqrt(this.sm / this.sk); },
+    rst() {
+      if (this.mode === 0) { this.p = this.a0 * PI / 180; this.v = 0; } else { this.p = 0.15; this.v = 0; }
+      this.t = 0; this.N = 0; this.tN = 0; this.prevV = 0; this.hist = []; this.peaks = []; this.vis = 0;
+    },
+    enter() { this.rst(); },
+    frame(dt) {
+      const n = Math.ceil(dt / 0.002), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        const a = this.mode === 0 ? -(this.g / this.l) * Math.sin(this.p) : -(this.sk / this.sm) * this.p;
+        this.v += a * h; this.p += this.v * h; this.t += h;
+        if (this.prevV > 0 && this.v <= 0 && this.t > 0.05) { this.N++; this.tN = this.t; this.peaks.push(this.t); }
+        this.prevV = this.v;
+      }
+      const norm = this.mode === 0 ? this.p / (25 * PI / 180) : this.p / 0.15;
+      this.hist.push({ t: this.t, y: norm }); while (this.hist.length && this.t - this.hist[0].t > 6) this.hist.shift();
+      $('#ro-pN').textContent = this.N; $('#ro-pt').textContent = this.N ? this.tN.toFixed(2) : '0.00';
+      $('#ro-pTexp').textContent = this.N ? (this.tN / this.N).toFixed(3) : '—'; $('#ro-pTth').textContent = this.Tth().toFixed(3);
+      const { ctx, w, h: H } = this.o; ctx.clearRect(0, 0, w, H);
+      const px = 550, py = 60;
+      if (this.mode === 0) {
+        const L = 70 + (this.l - 0.1) / 2.4 * 330, r = 16 + this.m * 7, bx = px + L * Math.sin(this.p), by = py + L * Math.cos(this.p);
+        ctx.strokeStyle = 'rgba(130,160,255,.2)'; ctx.lineWidth = 2; ctx.setLineDash([4, 8]);
+        ctx.beginPath(); ctx.arc(px, py, L, PI / 2 - 0.5, PI / 2 + 0.5); ctx.stroke(); ctx.setLineDash([]);
+        dashed(ctx, px, py, px, py + L + 40, C.axis);
+        block(ctx, px - 90, py - 22, 180, 14, '#aab8ff', '#4a5cd0', 7);
+        ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py - 8); ctx.lineTo(bx, by); ctx.stroke();
+        bob(ctx, bx, by, r);
+        arrow(ctx, px + 70, py, px + 70, py + L, C.amber, 2, 9); arrow(ctx, px + 70, py + L, px + 70, py, C.amber, 2, 9);
+        text(ctx, 'l = ' + this.l.toFixed(2) + ' m', px + 86, py + L / 2 + 8, { size: 24, color: C.amber, weight: 600 });
+        text(ctx, 'g = ' + this.g.toFixed(2) + ' m/s²', 40, 56, { size: 26, color: C.cyan, weight: 600 });
+        text(ctx, 'm = ' + this.m.toFixed(1) + ' kg', 40, 92, { size: 22, color: C.mut });
+      } else {
+        const yEq = 270, sc = 800, r = 36 + this.sm * 14, ym = yEq + this.p * sc;
+        block(ctx, px - 90, py - 22, 180, 14, '#aab8ff', '#4a5cd0', 7);
+        dashed(ctx, px - 120, yEq, px + 120, yEq, C.axis);
+        spring(ctx, px, py - 8, px, ym - r / 2, 11, 24);
+        block(ctx, px - r, ym - r / 2, 2 * r, r, '#9cc8ff', '#2f5fff');
+        text(ctx, 'm = ' + this.sm.toFixed(1) + ' kg', px, ym + 7, { size: 22, color: '#02122b', align: 'center', weight: 700 });
+        text(ctx, 'k = ' + this.sk + ' N/m', 40, 56, { size: 26, color: C.cyan, weight: 600 });
+      }
+      // grafik
+      const gx = 70, gy = 440, gw = 1000, gh = 250, gc = gy + gh / 2, WIN = 6;
+      gridBox(ctx, gx, gy, gw, gh, 6, 4);
+      dashed(ctx, gx, gc, gx + gw, gc, C.axis, 1, 0, 1.5);
+      text(ctx, 'tebranish grafigi', gx + 12, gy + 28, { size: 20, color: C.mut });
+      const X = t => gx + gw * (1 - (this.t - t) / WIN);
+      const pts = this.hist.map(s => [X(s.t), gc - s.y * (gh / 2 - 22)]).filter(p => p[0] >= gx);
+      glowLine(ctx, pts, C.cyan, 3.4);
+      this.peaks.filter(t => X(t) >= gx).forEach(t => { dashed(ctx, X(t), gy + 8, X(t), gy + gh - 8, 'rgba(255,200,87,.4)', 4, 5, 1.5); dot(ctx, X(t), gc - (gh / 2 - 22), 5, C.amber); });
+      const pk = this.peaks.filter(t => X(t) >= gx);
+      if (pk.length >= 2) {
+        const a = X(pk[pk.length - 2]), b = X(pk[pk.length - 1]), yy = gy + gh - 26;
+        arrow(ctx, a + 3, yy, b - 3, yy, C.amber, 2.5, 11); arrow(ctx, b - 3, yy, a + 3, yy, C.amber, 2.5, 11);
+        text(ctx, 'T', (a + b) / 2, yy - 8, { size: 26, color: C.amber, align: 'center', math: true, italic: true, weight: 700 });
+      }
+      if (pts.length) dot(ctx, pts[pts.length - 1][0], pts[pts.length - 1][1], 8, C.cyan);
+    }
+  };
+
+  /* =========================================================
+     11. CHASTOTA — to‘rt qator va pianino
+     ========================================================= */
+  Sims['s-freq'] = {
+    init() {
+      const o = this.o = mk('c-freq');
+      this.t = 0; this.nu4 = 1.5; this.last = [0, 0, 0, 0];
+      bind('r-nu', v => v.toFixed(2) + ' Hz', v => { this.nu4 = v; });
+      $('#b-freset').onclick = () => { this.t = 0; };
+      const notes = [['Do', 261.63], ['Re', 293.66], ['Mi', 329.63], ['Fa', 349.23], ['Sol', 392.0], ['La', 440.0], ['Si', 493.88], ['Do′', 523.25]];
+      const pn = $('#piano');
+      notes.forEach(([nm, f]) => {
+        const b = document.createElement('button');
+        b.style.cssText = 'flex:1;height:104px;border-radius:0 0 16px 16px;border:1px solid rgba(255,255,255,.5);background:linear-gradient(#f6f9ff,#b4c8ff);color:#0b1240;font:700 24px var(--sans);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:10px;gap:2px;transition:.15s';
+        b.innerHTML = nm + '<small style="font:500 16px var(--mono);opacity:.7">' + f.toFixed(0) + '</small>';
+        b.onclick = () => {
+          window.Snd.tone(f, { dur: 1.3, gain: 0.22 });
+          $('#ro-kf').textContent = f.toFixed(1) + ' Hz'; $('#ro-kT').textContent = (1000 / f).toFixed(2) + ' ms';
+          b.style.background = 'linear-gradient(#e8fbff,#27d9ff)'; setTimeout(() => { b.style.background = ''; }, 260);
+        };
+        pn.appendChild(b);
+      });
+      $('#ro-kf').textContent = '—'; $('#ro-kT').textContent = '—';
+    },
+    enter() { this.t = 0; },
+    frame(dt) {
+      this.t += dt; if (this.t > 40) this.t = 0;
+      const { ctx, w, h } = this.o, t = this.t;
+      ctx.clearRect(0, 0, w, h);
+      const lanes = [0.5, 1, 2, this.nu4], cols = [C.sky, C.cyan, C.violet2, C.pink], x0 = 380, x1 = 1060, cx = (x0 + x1) / 2, A = (x1 - x0) / 2 - 24;
+      text(ctx, 't = ' + t.toFixed(1) + ' s', 30, 44, { size: 32, color: '#fff', weight: 700 });
+      text(ctx, 'N = ν · t', 280, 44, { size: 28, color: C.mut, math: true, italic: true });
+      lanes.forEach((nu, i) => {
+        const y = 100 + i * 86, col = cols[i], N = Math.floor(nu * t + 1e-6);
+        panel(ctx, 20, y - 36, w - 40, 76, 18);
+        text(ctx, 'ν = ' + nu.toFixed(2) + ' Hz', 40, y - 2, { size: 25, color: col, weight: 700 });
+        text(ctx, 'T = ' + (1 / nu).toFixed(2) + ' s', 40, y + 26, { size: 20, color: C.mut });
+        text(ctx, 'N = ' + N, 340, y + 9, { size: 30, color: '#fff', align: 'right', weight: 700 });
+        dashed(ctx, x0, y, x1, y, 'rgba(150,180,255,.3)', 3, 6, 1.5);
+        [x0, x1].forEach(xx => { ctx.strokeStyle = 'rgba(150,180,255,.35)'; ctx.beginPath(); ctx.moveTo(xx, y - 14); ctx.lineTo(xx, y + 14); ctx.stroke(); });
+        const ph = nu * t; if (Math.floor(ph) !== this.last[i]) this.last[i] = Math.floor(ph);
+        const flash = 1 - Math.min(1, (ph - Math.floor(ph)) * 6);
+        for (let k = 8; k >= 1; k--) {
+          const xx = cx + A * Math.cos(TAU * nu * (t - k * 0.02));
+          ctx.fillStyle = col + Math.floor(12 + (9 - k) * 3).toString(16).padStart(2, '0'); ctx.beginPath(); ctx.arc(xx, y, 15 - k * 0.8, 0, TAU); ctx.fill();
+        }
+        if (flash > 0) { ctx.strokeStyle = col; ctx.globalAlpha = flash * 0.7; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x1 - 24 + 24 * 0 + (cx + A - (x1 - 0)) , y, 14 + (1 - flash) * 30, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+        bob(ctx, cx + A * Math.cos(TAU * nu * t), y, 15, '#fff', col);
+      });
+    }
+  };
+
+  /* =========================================================
+     12. SIKLIK CHASTOTA VA FAZA
+     ========================================================= */
+  Sims['s-phase'] = {
+    init() {
+      const o = this.o = mk('c-phase');
+      this.om = 2.5; this.dp = 0.5 * PI; this.tau = 0;
+      const info = () => {
+        const om = this.om; $('#ro-pw').innerHTML = om.toFixed(2) + '<em>rad/s</em>'; $('#ro-pnu').textContent = (om / TAU).toFixed(2); $('#ro-pT').textContent = (TAU / om).toFixed(2);
+        const d = this.dp / PI, b = $('#badge-pd'), near = v => Math.abs(d - v) < 0.03;
+        if (near(0) || near(2)) { b.className = 'badge'; b.textContent = 'Bir xil fazada (sinfaz): Δφ = 0'; }
+        else if (near(1)) { b.className = 'badge warn'; b.textContent = 'Qarama-qarshi fazada: Δφ = π'; }
+        else if (near(0.5) || near(1.5)) { b.className = 'badge info'; b.textContent = 'Chorak davrga siljigan: Δφ = ' + (near(0.5) ? 'π/2' : '3π/2'); }
+        else { b.className = 'badge info'; b.textContent = 'Fazalar farqi Δφ = ' + d.toFixed(2) + 'π'; }
+      };
+      this.info = info;
+      bind('r-wn', v => v.toFixed(1) + ' rad/s', v => { this.om = v; info(); });
+      this.sd = bind('r-dp', v => v.toFixed(2) + 'π', v => { this.dp = v * PI; info(); });
+      $('#b-p0').onclick = () => this.sd.set(0); $('#b-p90').onclick = () => this.sd.set(0.5); $('#b-p180').onclick = () => this.sd.set(1);
+      info();
+    },
+    enter() { this.tau = 0; this.info(); },
+    frame(dt) {
+      this.tau += dt; if (this.tau > 6) this.tau = 0;
+      const { ctx, w, h } = this.o, om = this.om, dp = this.dp, tau = this.tau, R = 150, cx = 235, cy = 320;
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(150,180,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+      const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R); rg.addColorStop(0, 'rgba(47,123,255,.04)'); rg.addColorStop(1, 'rgba(139,92,246,.2)'); ctx.fillStyle = rg; ctx.fill();
+      dashed(ctx, cx, cy - 175, cx, cy + 175, C.axis, 5, 6, 1.2); dashed(ctx, cx - 175, cy, cx + 175, cy, C.axis, 5, 6, 1.2);
+      const t1 = om * tau, t2 = om * tau + dp;
+      const p1 = [cx + R * Math.sin(t1), cy - R * Math.cos(t1)], p2 = [cx + R * Math.sin(t2), cy - R * Math.cos(t2)];
+      // Δφ yoyi
+      ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 52, t1 - PI / 2, t2 - PI / 2); ctx.stroke();
+      text(ctx, 'Δφ', cx + 62 * Math.sin((t1 + t2) / 2), cy - 62 * Math.cos((t1 + t2) / 2) + 6, { size: 24, color: C.amber, align: 'center', math: true, italic: true, weight: 700 });
+      arrow(ctx, cx, cy, p1[0], p1[1], C.blue, 4, 15); arrow(ctx, cx, cy, p2[0], p2[1], C.pink, 4, 15);
+      dashed(ctx, p1[0], p1[1], cx, p1[1], 'rgba(61,139,255,.5)', 4, 5, 1.4); dashed(ctx, p2[0], p2[1], cx, p2[1], 'rgba(255,107,214,.5)', 4, 5, 1.4);
+      dot(ctx, cx, p1[1], 7, C.blue); dot(ctx, cx, p2[1], 7, C.pink);
+      text(ctx, 'fazorlar (aylanuvchi vektorlar)', cx, cy + 215, { size: 21, color: C.mut, align: 'center' });
+      // grafik
+      const gx = 480, gw = 620, gy = 90, gh = 470, gc = cy;
+      gridBox(ctx, gx, gy, gw, gh, 6, 6);
+      dashed(ctx, gx, gc, gx + gw, gc, C.axis, 1, 0, 1.5);
+      for (let i = 0; i <= 6; i++) text(ctx, i + ' s', gx + gw * i / 6, gy + gh + 28, { size: 19, color: C.mut, align: 'center' });
+      const crv = (ph, col) => { const p = []; for (let i = 0; i <= 260; i++) { const t = 6 * i / 260; p.push([gx + gw * t / 6, gc - R * Math.cos(om * t + ph)]); } glowLine(ctx, p, col, 3.4); };
+      crv(0, C.blue); crv(dp, C.pink);
+      const X = gx + gw * tau / 6;
+      dashed(ctx, X, gy, X, gy + gh, 'rgba(255,255,255,.3)', 4, 5, 1.2);
+      dot(ctx, X, gc - R * Math.cos(t1), 9, C.blue); dot(ctx, X, gc - R * Math.cos(t2), 9, C.pink);
+      const d = ((dp % TAU) + TAU) % TAU, tp2 = (TAU - d) / om, tp1 = TAU / om;
+      if (d > 0.04 && d < TAU - 0.04 && tp1 < 6) {
+        const a = gx + gw * tp2 / 6, b = gx + gw * tp1 / 6, yy = gy + 38;
+        dashed(ctx, a, yy - 8, a, gc - R, 'rgba(255,200,87,.5)', 3, 4, 1.2); dashed(ctx, b, yy - 8, b, gc - R, 'rgba(255,200,87,.5)', 3, 4, 1.2);
+        arrow(ctx, a + 2, yy, b - 2, yy, C.amber, 2.5, 10); arrow(ctx, b - 2, yy, a + 2, yy, C.amber, 2.5, 10);
+        text(ctx, 'Δt = Δφ/ω = ' + (d / om).toFixed(2) + ' s', (a + b) / 2, yy - 12, { size: 20, color: C.amber, align: 'center', weight: 600 });
+      }
+      panel(ctx, gx, 616, gw, 92);
+      text(ctx, 'x₁ = A cos(ωt)', gx + 20, 654, { size: 25, color: C.blue, weight: 600 });
+      text(ctx, 'x₂ = A cos(ωt + Δφ)', gx + 20, 692, { size: 25, color: C.pink, weight: 600 });
+      text(ctx, 'φ₁ = ' + piStr(((t1 / PI) % 2 + 2) % 2), gx + gw - 20, 654, { size: 24, color: '#fff', align: 'right', weight: 600 });
+      text(ctx, 'φ₂ = ' + piStr(((t2 / PI) % 2 + 2) % 2), gx + gw - 20, 692, { size: 24, color: '#fff', align: 'right', weight: 600 });
+    }
+  };
+
+  /* =========================================================
+     13. FORMULALAR — kalkulyator va aylanuvchi kartalar
+     ========================================================= */
+  Sims['s-formulas'] = {
+    init() {
+      $$('.flip').forEach(f => f.addEventListener('click', () => f.classList.toggle('on')));
+      const nu = $('#i-nu'), T = $('#i-T'), w = $('#i-w');
+      const fmt = v => String(+v.toPrecision(5));
+      const parse = el => parseFloat(el.value.replace(',', '.'));
+      const set = (el, v) => { el.value = fmt(v); };
+      nu.addEventListener('input', () => { const v = parse(nu); if (v > 0) { set(T, 1 / v); set(w, TAU * v); } });
+      T.addEventListener('input', () => { const v = parse(T); if (v > 0) { set(nu, 1 / v); set(w, TAU / v); } });
+      w.addEventListener('input', () => { const v = parse(w); if (v > 0) { set(nu, v / TAU); set(T, TAU / v); } });
+    },
+    leave() { $$('.flip').forEach(f => f.classList.remove('on')); }
+  };
+
+  /* =========================================================
+     14. VIRTUAL LABORATORIYA
+     ========================================================= */
+  Sims['s-lab'] = {
+    planets: [['Oy', 1.62], ['Mars', 3.71], ['Yer', 9.81], ['Yupiter', 24.79]],
+    init() {
+      const o = this.o = mk('c-lab');
+      this.l = 1; this.speed = 4; this.trials = []; this.measuring = false; this.solved = false;
+      this.th = 0.12; this.w = 0; this.t = 0; this.N = 0; this.prevV = 0; this.tN = 0; this.pick();
+      bind('r-ll', v => v.toFixed(2) + ' m', v => { this.l = v; });
+      seg('seg-lspd', d => { this.speed = +d.v; });
+      $('#b-lmeasure').onclick = () => this.measure();
+      $$('#seg-guess button').forEach(b => b.addEventListener('click', () => this.guess(b.dataset.g, b)));
+      this.render();
+    },
+    pick() { this.pl = this.planets[Math.floor(Math.random() * 4)]; },
+    measure() {
+      if (this.solved) { this.solved = false; this.trials = []; this.pick(); this.msg('', ''); $$('#seg-guess button').forEach(x => x.classList.remove('on')); }
+      this.th = 0.15; this.w = 0; this.t = 0; this.N = 0; this.prevV = 0; this.tN = 0; this.measuring = true; this.render();
+    },
+    guess(name, btn) {
+      if (!this.trials.length) { this.msg('Avval o‘lchash o‘tkazing', 'no'); return; }
+      $$('#seg-guess button').forEach(x => x.classList.remove('on')); btn.classList.add('on');
+      const mean = this.mean();
+      if (name === this.pl[0]) { this.solved = true; this.msg(`✓ To‘g‘ri! Bu ${this.pl[0]}: g = ${this.pl[1]} m/s². Yangi sayyora uchun «O‘lchash» ni bosing.`, 'ok'); }
+      else this.msg(`✗ Yo‘q. Sizning o‘rtacha g ≈ ${mean.toFixed(2)} m/s². Jadvaldagi g bilan solishtiring.`, 'no');
+    },
+    msg(t, c) { const m = $('#msg-lab'); m.textContent = t; m.className = 'msg ' + c; },
+    mean() { return this.trials.reduce((a, b) => a + b.g, 0) / this.trials.length; },
+    render() {
+      const tb = $('#tb-lab'), rows = this.trials.slice(-5);
+      tb.innerHTML = rows.map((r, i) => `<tr><td>${this.trials.length - rows.length + i + 1}</td><td>${r.l.toFixed(2)}</td><td>${r.t10.toFixed(2)}</td><td>${r.T.toFixed(3)}</td><td>${r.g.toFixed(2)}</td></tr>`).join('') +
+        (this.trials.length ? `<tr class="avg"><td colspan="4" style="text-align:left">o‘rtacha g</td><td>${this.mean().toFixed(2)}</td></tr>` : '<tr><td colspan="5" style="text-align:center;color:#98a6cf;font-family:var(--sans)">Hali o‘lchash yo‘q</td></tr>');
+    },
+    enter() { this.render(); },
+    frame(dt) {
+      const g = this.pl[1], L = this.l, sp = this.speed, sdt = dt * sp;
+      const n = Math.ceil(sdt / 0.002), h = sdt / n;
+      for (let i = 0; i < n; i++) {
+        const a = -(g / L) * Math.sin(this.th); this.w += a * h; this.th += this.w * h; this.t += h;
+        if (this.measuring && this.prevV > 0 && this.w <= 0 && this.t > 0.05) {
+          this.N++; this.tN = this.t;
+          if (this.N >= 10) {
+            this.measuring = false;
+            const t10 = this.t + (Math.random() - 0.5) * 0.2, T = t10 / 10, gg = 4 * PI * PI * L / (T * T);
+            this.trials.push({ l: L, t10, T, g: gg }); this.render();
+          }
+        }
+        this.prevV = this.w;
+      }
+      const { ctx, w, h: H } = this.o; ctx.clearRect(0, 0, w, H);
+      // nomaʼlum sayyora
+      const sx = 880, sy = 110, sg = ctx.createRadialGradient(sx - 18, sy - 18, 6, sx, sy, 64);
+      if (this.solved) { const cm = { Oy: ['#e8e8ee', '#6a6a78'], Mars: ['#ffb08a', '#8a3a1c'], Yer: ['#9be3ff', '#1f5fa8'], Yupiter: ['#ffd9a8', '#a8642c'] }[this.pl[0]]; sg.addColorStop(0, cm[0]); sg.addColorStop(1, cm[1]); }
+      else { sg.addColorStop(0, '#5a6490'); sg.addColorStop(1, '#161a36'); }
+      ctx.save(); ctx.shadowColor = '#6a7cff'; ctx.shadowBlur = 30; ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 62, 0, TAU); ctx.fill(); ctx.restore();
+      text(ctx, this.solved ? this.pl[0] : '?', sx, sy + 16, { size: this.solved ? 24 : 54, color: '#fff', align: 'center', weight: 700 });
+      // mayatnik
+      const px = 470, py = 50, Lp = 60 + (L - 0.3) / 1.2 * 440, bx = px + Lp * Math.sin(this.th), by = py + Lp * Math.cos(this.th);
+      block(ctx, px - 90, py - 22, 180, 14, '#aab8ff', '#4a5cd0', 7);
+      dashed(ctx, px, py, px, py + Lp + 40, C.axis);
+      ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py - 8); ctx.lineTo(bx, by); ctx.stroke();
+      bob(ctx, bx, by, 24);
+      text(ctx, 'l = ' + L.toFixed(2) + ' m', px + 80, py + Lp / 2, { size: 24, color: C.amber, weight: 600 });
+      arrow(ctx, px + 60, py, px + 60, py + Lp, C.amber, 2, 9); arrow(ctx, px + 60, py + Lp, px + 60, py, C.amber, 2, 9);
+      // sekundomer
+      panel(ctx, 30, 30, 290, 130, 20);
+      text(ctx, 'SEKUNDOMER', 50, 62, { size: 18, color: C.mut, weight: 700 });
+      text(ctx, (this.measuring ? this.t : this.tN).toFixed(2) + ' s', 50, 118, { size: 52, color: this.measuring ? C.cyan : '#fff', weight: 700 });
+      text(ctx, 'N = ' + this.N + ' / 10', 50, 148, { size: 22, color: C.amber, weight: 600 });
+      text(ctx, this.measuring ? 'o‘lchanmoqda…' : 'tayyor', 30, 690, { size: 22, color: C.mut });
+      text(ctx, 'g = 4π² l / T²', w - 30, 690, { size: 26, color: '#dbe6ff', align: 'right', math: true, italic: true });
+    }
+  };
+
+  /* =========================================================
+     15. TOVUSHNING HOSIL BO‘LISHI — longitudinal to‘lqin
+     ========================================================= */
+  Sims['s-soundgen'] = {
+    init() {
+      const o = this.o = mk('c-sgen');
+      this.f = 440; this.amp = 0.6; this.cont = false; this.segs = []; this.T = 0; this.hist = [];
+      bind('r-gp', v => v + ' Hz', v => { this.f = v; if (window.Snd.playing('sg')) window.Snd.set('sg', v, 0.2 * this.amp); });
+      bind('r-ga', v => v + ' %', v => { this.amp = v / 100; if (window.Snd.playing('sg')) window.Snd.set('sg', null, 0.2 * this.amp); });
+      $('#b-strike').onclick = () => { this.strike(true); };
+      $('#b-cont').onclick = e => {
+        this.cont = !this.cont; e.currentTarget.textContent = 'Doimiy manba: ' + (this.cont ? 'yoqilgan' : "o‘chiq"); e.currentTarget.classList.toggle('on', this.cont);
+        if (this.cont) { this.segs.push({ t0: this.T, type: 'c', t1: null }); window.Snd.start('sg', this.f, { gain: 0.2 * this.amp }); }
+        else { const s = this.segs[this.segs.length - 1]; if (s && s.type === 'c' && s.t1 == null) s.t1 = this.T; window.Snd.stop('sg', 0.15); }
+      };
+    },
+    strike(sound) {
+      this.segs.push({ t0: this.T, type: 's' }); if (this.segs.length > 6) this.segs.shift();
+      if (sound) window.Snd.tone(this.f, { dur: 3, gain: 0.22 * this.amp + 0.02, attack: 0.004 });
+    },
+    enter() { this.segs = []; this.T = 0; this.cont = false; this.hist = []; const b = $('#b-cont'); b.textContent = "Doimiy manba: o‘chiq"; b.classList.remove('on'); this.strike(false); },
+    leave() { this.cont = false; },
+    src(tau, seg) {
+      if (tau < 0) return 0;
+      if (seg.type === 's') return Math.exp(-tau / 2.2) * Math.sin(this.om * tau);
+      let e = Math.min(1, tau / 0.25);
+      if (seg.t1 != null) { const L = seg.t1 - seg.t0; if (tau > L) { e *= Math.max(0, 1 - (tau - L) / 0.25); } }
+      return e * Math.sin(this.om * tau);
+    },
+    frame(dt) {
+      this.T += dt;
+      const { ctx, w, h } = this.o, c = 250, lam = 40000 / this.f, k = TAU / lam;
+      this.om = c * k; const Ap = Math.min(3 + 9 * this.amp, 0.85 / k), x0 = 215, dx = 12, xs = 175, cols = Math.floor((1085 - x0) / dx), rows = 12, y0 = 128, dy = 27;
+      ctx.clearRect(0, 0, w, h);
+      const src = this.segs.reduce((s, g) => s + this.src(this.T - g.t0, g), 0);
+      this.hist.push({ t: this.T, s: src }); while (this.hist.length && this.T - this.hist[0].t > 3.2) this.hist.shift();
+      // diapazon
+      const xi = new Array(cols + 1);
+      for (let i = 0; i <= cols; i++) {
+        const xr = x0 + i * dx; let s = 0;
+        for (const g of this.segs) { const tau = this.T - g.t0 - (xr - xs) / c; s += this.src(tau, g); }
+        xi[i] = s * Ap;
+      }
+      // kamerton
+      const fx = 110, pd = src * 7;
+      ctx.fillStyle = 'rgba(170,190,255,.5)'; ctx.fillRect(fx - 9, 360, 18, 60);
+      const pg = ctx.createLinearGradient(0, 120, 0, 360); pg.addColorStop(0, '#e6edff'); pg.addColorStop(1, '#8fa6ff');
+      ctx.save(); ctx.shadowColor = '#7ab8ff'; ctx.shadowBlur = 18; ctx.fillStyle = pg;
+      ctx.beginPath(); ctx.roundRect(fx - 40 - pd, 124, 15, 240, 7); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(fx + 25 + pd, 124, 15, 240, 7); ctx.fill(); ctx.beginPath(); ctx.roundRect(fx - 40, 346, 80, 20, 8); ctx.fill(); ctx.restore();
+      text(ctx, 'tebranayotgan jism', fx, 442, { size: 20, color: C.mut, align: 'center' });
+      // zarralar
+      for (let i = 0; i < cols; i++) {
+        const dens = clamp(1 - (xi[i + 1] - xi[i]) / dx, 0.35, 1.9), q = clamp((dens - 1) / 0.9, -1, 1);
+        const r = Math.round(60 + (q > 0 ? 100 * q : 0)), g = Math.round(110 + 130 * Math.max(0, q)), b = Math.round(230 + 25 * q);
+        ctx.fillStyle = `rgba(${r},${g},${b},${0.5 + 0.5 * Math.max(0, q)})`;
+        const rad = 3 + 1.4 * Math.max(0, q);
+        for (let j = 0; j < rows; j++) { ctx.beginPath(); ctx.arc(x0 + i * dx + xi[i], y0 + j * dy, rad, 0, TAU); ctx.fill(); }
+      }
+      // quloq pardasi
+      const ex = 1112, em = xi[cols] * 0.35;
+      ctx.strokeStyle = C.pink; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ex + em, 110); ctx.lineTo(ex + em, 128 + rows * dy - 20); ctx.stroke();
+      text(ctx, 'quloq', ex - 6, 108 + 0, { size: 18, color: C.pink, align: 'center' });
+      // bosim egri chizig‘i
+      const py = 534, ph = 46;
+      panel(ctx, 40, py - 62, 1070, 124); dashed(ctx, 40, py, 1110, py, C.axis, 1, 0, 1.4);
+      text(ctx, 'bosim (zichlik)', 56, py - 38, { size: 20, color: C.mut });
+      const pts = []; for (let i = 0; i < cols; i++) { const d = clamp(1 - (xi[i + 1] - xi[i]) / dx, 0.2, 2); pts.push([x0 + i * dx, py - (d - 1) * ph * 1.1]); }
+      glowLine(ctx, pts, C.cyan, 3.2);
+      text(ctx, 'siqilish', 1100, py - 44, { size: 18, color: C.cyan, align: 'right' }); text(ctx, 'siyraklanish', 1100, py + 50, { size: 18, color: C.violet2, align: 'right' });
+      // manba tebranishi vaqt bo‘yicha
+      const ty = 664, th = 40, tx = 40, tw = 1070;
+      panel(ctx, tx, ty - 60, tw, 120); dashed(ctx, tx, ty, tx + tw, ty, C.axis, 1, 0, 1.4);
+      text(ctx, 'manba tebranishi x(t)', tx + 16, ty - 36, { size: 20, color: C.mut });
+      const tp = this.hist.map(s => [tx + tw * (1 - (this.T - s.t) / 3.2), ty - s.s * th]);
+      glowLine(ctx, tp, C.pink, 3);
+    }
+  };
+
+  /* =========================================================
+     16. TOVUSH XUSUSIYATLARI
+     ========================================================= */
+  Sims['s-props'] = {
+    init() {
+      this.c = [mk('c-p1'), mk('c-p2'), mk('c-p3')]; this.t = 0;
+      this.f = 440; this.db = 60; this.wave = 'sine'; this.on = null;
+      const names = ['Do', 'Do♯', 'Re', 'Re♯', 'Mi', 'Fa', 'Fa♯', 'Sol', 'Sol♯', 'La', 'La♯', 'Si'];
+      const loud = [[20, 'barg shitirlashi'], [30, 'shivirlash'], [40, 'kutubxona'], [50, "yomg‘ir"], [60, 'suhbat'], [70, "shovqinli ko‘cha"], [80, "yuk poyezdi"], [90, 'mototsikl'], [100, "qurilish bolg‘asi"]];
+      const gain = db => 0.012 * Math.pow(10, (db - 20) / 80 * 1.4);
+      this.upd1 = () => { const m = Math.round(69 + 12 * Math.log2(this.f / 440)); $('#t-p1').textContent = names[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); };
+      this.upd2 = () => { let n = loud[0][1]; loud.forEach(l => { if (this.db >= l[0]) n = l[1]; }); $('#t-p2').textContent = n; };
+      bind('r-p1', v => v + ' Hz', v => { this.f = v; this.upd1(); if (this.on === 1) window.Snd.set('pp', v, 0.15); });
+      bind('r-p2', v => v + ' dB', v => { this.db = v; this.upd2(); if (this.on === 2) window.Snd.set('pp', null, gain(v)); });
+      seg('seg-p3', d => { this.wave = d.v; if (this.on === 3) window.Snd.setType('pp', d.v); });
+      const toggle = (n, btn) => {
+        const was = this.on === n; this.stop();
+        if (!was) {
+          this.on = n; btn.textContent = '■ To‘xtatish'; btn.classList.add('on');
+          if (n === 1) window.Snd.start('pp', this.f, { gain: 0.15 });
+          if (n === 2) window.Snd.start('pp', 440, { gain: gain(this.db) });
+          if (n === 3) window.Snd.start('pp', 220, { type: this.wave, gain: this.wave === 'sine' ? 0.15 : 0.07 });
+        }
+      };
+      [1, 2, 3].forEach(n => { $('#b-pl' + n).onclick = e => toggle(n, e.currentTarget); });
+      this.upd1(); this.upd2();
+    },
+    stop() { window.Snd.stop('pp'); this.on = null; [1, 2, 3].forEach(n => { const b = $('#b-pl' + n); b.textContent = '▶ Tinglash'; b.classList.remove('on'); }); },
+    enter() { this.stop(); },
+    leave() { this.stop(); },
+    frame(dt) {
+      this.t += dt;
+      // 1: balandlik
+      let { ctx, w, h } = this.c[0]; ctx.clearRect(0, 0, w, h); gridBox(ctx, 0, 0, w, h, 6, 4); dashed(ctx, 0, h / 2, w, h / 2, C.axis, 1, 0, 1.2);
+      let p = []; const cyc = this.f * 0.02;
+      for (let i = 0; i <= 230; i++) { const u = i / 230; p.push([u * w, h / 2 - 85 * Math.sin(TAU * cyc * u - this.t * 3)]); } glowLine(ctx, p, C.cyan, 3);
+      text(ctx, '20 ms', w - 10, h - 10, { size: 17, color: C.mut, align: 'right' }); text(ctx, 'T = ' + (1000 / this.f).toFixed(2) + ' ms', 10, 24, { size: 18, color: C.cyan, weight: 600 });
+      // 2: kuchlilik
+      ({ ctx, w, h } = this.c[1]); ctx.clearRect(0, 0, w, h); gridBox(ctx, 0, 0, w, h, 6, 4); dashed(ctx, 0, h / 2, w, h / 2, C.axis, 1, 0, 1.2);
+      const A = 0.1 + 0.9 * (this.db - 20) / 80; p = [];
+      for (let i = 0; i <= 230; i++) { const u = i / 230; p.push([u * w, h / 2 - 95 * A * Math.sin(TAU * 4 * u - this.t * 3)]); } glowLine(ctx, p, C.pink, 3);
+      text(ctx, 'A ∝ ' + A.toFixed(2), 10, 24, { size: 18, color: C.pink, weight: 600, math: true });
+      // 3: tembr
+      ({ ctx, w, h } = this.c[2]); ctx.clearRect(0, 0, w, h); gridBox(ctx, 0, 0, w, h, 6, 4); dashed(ctx, 0, h / 2, w, h / 2, C.axis, 1, 0, 1.2);
+      const fn = { sine: u => Math.sin(u), triangle: u => 2 / PI * Math.asin(Math.sin(u)), square: u => Math.sin(u) >= 0 ? 0.92 : -0.92, sawtooth: u => 2 * ((u / TAU + 0.5) - Math.floor(u / TAU + 0.5)) - 1 }[this.wave];
+      p = []; const ww = w * 0.58;
+      for (let i = 0; i <= 200; i++) { const u = i / 200; p.push([u * ww, h / 2 - 85 * fn(TAU * 2.5 * u - this.t * 2.5)]); } glowLine(ctx, p, C.violet2, 3);
+      const harm = n => this.wave === 'sine' ? (n === 1 ? 1 : 0) : this.wave === 'triangle' ? (n % 2 ? 1 / (n * n) : 0) : this.wave === 'square' ? (n % 2 ? 1 / n : 0) : 1 / n;
+      dashed(ctx, ww + 6, 14, ww + 6, h - 14, C.grid, 3, 4, 1);
+      text(ctx, 'spektr', ww + 22, 24, { size: 17, color: C.mut });
+      for (let n = 1; n <= 8; n++) {
+        const bx = ww + 20 + (n - 1) * 20, bh = harm(n) * (h - 66);
+        const gg = ctx.createLinearGradient(0, h - 26 - bh, 0, h - 26); gg.addColorStop(0, C.pink); gg.addColorStop(1, C.violet);
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.roundRect(bx, h - 26 - Math.max(bh, 0), 13, Math.max(bh, 0), 3); ctx.fill();
+        text(ctx, n + '', bx + 6.5, h - 8, { size: 14, color: C.mut, align: 'center' });
+      }
+    }
+  };
+
+  /* =========================================================
+     17. INFRA / ESHITILADIGAN / ULTRA — chastota o‘qi
+     ========================================================= */
+  Sims['s-range'] = {
+    rows: [['🐘 Fil', 16, 12000], ['🧑 Odam', 20, 20000], ['🐕 It', 67, 45000], ['🐈 Mushuk', 45, 64000], ['🦇 Ko‘rshapalak', 2000, 110000], ['🐬 Delfin', 75, 150000]],
+    init() {
+      const o = this.o = mk('c-range');
+      this.f = 440; this.playing = false; this.drag = false;
+      const c = o.c, set = e => { const q = o.pt(e), u = clamp((q.x - 190) / (1700 - 190), 0, 1); this.f = Math.pow(10, u * 6); this.sync(); };
+      c.addEventListener('pointerdown', e => { this.drag = true; c.setPointerCapture(e.pointerId); set(e); });
+      c.addEventListener('pointermove', e => { if (this.drag) set(e); });
+      c.addEventListener('pointerup', () => { this.drag = false; });
+      $('#b-rplay').onclick = e => {
+        this.playing = !this.playing; e.currentTarget.textContent = this.playing ? '■ To‘xtatish' : '🔊 Tanlangan chastotani eshitish'; e.currentTarget.classList.toggle('on', this.playing);
+        if (!this.playing) window.Snd.stop('rg'); else this.sync();
+      };
+      this.sync();
+    },
+    zone(f) { return f < 20 ? 0 : f <= 20000 ? 1 : 2; },
+    sync() {
+      const f = this.f, z = this.zone(f);
+      $('#ro-rf').textContent = f < 1000 ? (f < 100 ? f.toFixed(1) : f.toFixed(0)) + ' Hz' : f < 1e6 ? (f / 1000).toFixed(2) + ' kHz' : (f / 1e6).toFixed(2) + ' MHz';
+      const b = $('#badge-rz'); b.className = z === 1 ? 'badge' : 'badge warn'; b.textContent = ['Infratovush — odam eshitmaydi', 'Eshitiladigan tovush', 'Ultratovush — odam eshitmaydi'][z];
+      $$('.zc').forEach((el, i) => { el.style.borderColor = i === z ? '#27d9ff' : ''; el.style.boxShadow = i === z ? '0 0 40px rgba(39,217,255,.35)' : ''; });
+      if (this.playing) {
+        const aud = z === 1 && f <= 16000, g = aud ? (f > 5000 ? 0.07 : 0.14) : 0;
+        if (!window.Snd.playing('rg')) window.Snd.start('rg', clamp(f, 20, 20000), { gain: g }); else window.Snd.set('rg', clamp(f, 20, 20000), g);
+      }
+    },
+    enter() { this.playing = false; const b = $('#b-rplay'); b.textContent = '🔊 Tanlangan chastotani eshitish'; b.classList.remove('on'); this.sync(); },
+    leave() { this.playing = false; },
+    frame() {
+      const { ctx, w, h } = this.o, X0 = 190, X1 = 1700, X = f => X0 + (X1 - X0) * Math.log10(f) / 6, t = performance.now() / 1000;
+      ctx.clearRect(0, 0, w, h);
+      const zones = [[1, 20, 'rgba(139,92,246,.30)', 'INFRATOVUSH', C.violet2], [20, 20000, 'rgba(47,123,255,.30)', 'ESHITILADIGAN TOVUSH', C.cyan], [20000, 1e6, 'rgba(255,107,214,.24)', 'ULTRATOVUSH', C.pink]];
+      zones.forEach(z => {
+        const a = X(z[0]), b = X(z[1]);
+        const g = ctx.createLinearGradient(0, 20, 0, 460); g.addColorStop(0, z[2]); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(a, 20, b - a, 440);
+        ctx.fillStyle = z[2]; ctx.fillRect(a, 20, b - a, 54);
+        text(ctx, z[3], (a + b) / 2, 56, { size: 24, color: z[4], align: 'center', weight: 800 });
+      });
+      // o‘q
+      const ay = 470; ctx.strokeStyle = C.axis; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X0, ay); ctx.lineTo(X1, ay); ctx.stroke();
+      ['1 Hz', '10', '100', '1 kHz', '10 kHz', '100 kHz', '1 MHz'].forEach((s, i) => {
+        const x = X0 + (X1 - X0) * i / 6; ctx.beginPath(); ctx.moveTo(x, ay); ctx.lineTo(x, ay + 9); ctx.stroke();
+        dashed(ctx, x, 74, x, ay, 'rgba(150,180,255,.12)', 3, 6, 1); text(ctx, s, x, ay + 30, { size: 19, color: C.mut, align: 'center' });
+      });
+      [20, 20000].forEach(fv => dashed(ctx, X(fv), 74, X(fv), ay, 'rgba(255,255,255,.4)', 5, 5, 1.6));
+      text(ctx, '20 Hz', X(20), 98, { size: 18, color: '#fff', align: 'center', weight: 600 }); text(ctx, '20 kHz', X(20000), 98, { size: 18, color: '#fff', align: 'center', weight: 600 });
+      // hayvonlar
+      this.rows.forEach((r, i) => {
+        const y = 128 + i * 56, a = X(r[1]), b = X(r[2]), act = this.f >= r[1] && this.f <= r[2];
+        ctx.font = '600 22px "Segoe UI",sans-serif'; ctx.fillStyle = act ? '#fff' : '#9fb0dd'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(r[0], 14, y + 4);
+        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, C.violet); g.addColorStop(0.5, C.blue); g.addColorStop(1, C.pink);
+        ctx.save(); ctx.globalAlpha = act ? 1 : 0.42; if (act) { ctx.shadowColor = C.cyan; ctx.shadowBlur = 20; }
+        ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(a, y - 13, b - a, 30, 15); ctx.fill(); ctx.restore();
+      });
+      // ko‘rsatkich
+      const cx = X(clamp(this.f, 1, 1e6)); ctx.save(); ctx.shadowColor = '#fff'; ctx.shadowBlur = 16; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, 20); ctx.lineTo(cx, ay + 2); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, 20, 9, 0, TAU); ctx.fill();
+      if (this.playing && this.zone(this.f) === 1) { for (let k = 0; k < 3; k++) { const ph = (t * 1.2 + k / 3) % 1; ctx.strokeStyle = `rgba(39,217,255,${0.7 * (1 - ph)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, 20, 12 + 36 * ph, 0, TAU); ctx.stroke(); } }
+    }
+  };
+
+  /* =========================================================
+     18. MUHITLAR — tovush poygasi
+     ========================================================= */
+  Sims['s-media'] = {
+    init() {
+      const o = this.o = mk('c-media');
+      this.scale = 0.25; this.T = 20; this.t = 0; this.running = false; this.arr = [null, null, null]; this.beeped = [0, 0, 0];
+      this.vAir = () => 331.3 + 0.606 * this.T;
+      bind('r-mt', v => v + ' °C', v => { this.T = v; this.tbl(); });
+      seg('seg-mspd', d => { this.scale = +d.v; });
+      $('#b-mgo').onclick = e => { this.t = 0; this.running = true; this.arr = [null, null, null]; this.beeped = [0, 0, 0]; window.Snd.tone(110, { dur: 0.25, gain: 0.25 }); e.currentTarget.textContent = '▶ Qayta yuborish'; };
+      this.tbl();
+    },
+    tbl() { const v = this.vAir(); $('#tv-air').textContent = v.toFixed(0); $('#tt-air').textContent = (1000 / v).toFixed(2); },
+    enter() { this.t = 0; this.running = false; this.arr = [null, null, null]; $('#b-mgo').textContent = '▶ Tovushni yuborish'; },
+    frame(dt) {
+      if (this.running) {
+        this.t += dt * this.scale;
+        const sp = [this.vAir(), 1480, 5000];
+        sp.forEach((v, i) => { if (this.arr[i] == null && v * this.t >= 1000) { this.arr[i] = 1000 / v; if (!this.beeped[i]) { this.beeped[i] = 1; window.Snd.tone([330, 523, 784][i], { dur: 0.35, gain: 0.14 }); } } });
+        if (this.t > 1000 / sp[0] + 0.5) this.running = false;
+      }
+      const { ctx, w, h } = this.o; ctx.clearRect(0, 0, w, h);
+      const sp = [this.vAir(), 1480, 5000, 0], names = ['Havo', 'Suv', "Po‘lat", 'Vakuum'], cols = [C.sky, C.cyan, C.violet2, '#6b7599'], spc = [18, 11, 7, 0];
+      const x0 = 200, x1 = 1090, len = x1 - x0;
+      text(ctx, 'Manba', 80, 28, { size: 20, color: C.mut, align: 'center' }); text(ctx, '1000 m', x1, 28, { size: 20, color: C.mut, align: 'right' });
+      for (let L = 0; L < 4; L++) {
+        const yc = 120 + L * 165, col = cols[L];
+        panel(ctx, 20, yc - 70, w - 40, 140, 22);
+        text(ctx, names[L], 36, yc - 34, { size: 25, color: col, weight: 700 });
+        // manba (karnay)
+        ctx.fillStyle = '#dbe6ff'; ctx.beginPath(); ctx.roundRect(60, yc - 22, 16, 44, 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(78, yc - 12); ctx.lineTo(112, yc - 34); ctx.lineTo(112, yc + 34); ctx.lineTo(78, yc + 12); ctx.closePath(); ctx.fill();
+        const xf = this.running || this.t > 0 ? x0 + len * clamp(sp[L] * this.t / 1000, 0, 1) : x0, started = this.t > 0;
+        if (L < 3) {
+          const dx = spc[L], n = Math.floor(len / dx);
+          for (let i = 0; i <= n; i++) {
+            const xp = x0 + i * dx; let d = 0, env = 0;
+            if (started && sp[L] * this.t < 1000 + 120) { const u = xp - xf; env = Math.exp(-(u * u) / (2 * 55 * 55)) * (xf < x1 + 60 ? 1 : 0); d = 6 * env * Math.sin(u / 7); }
+            for (let j = -2; j <= 2; j++) { ctx.fillStyle = col; ctx.globalAlpha = 0.28 + 0.72 * env; ctx.beginPath(); ctx.arc(xp + d, yc + j * 17, 2.6 + 1.2 * env, 0, TAU); ctx.fill(); }
+          }
+          ctx.globalAlpha = 1;
+          if (started && sp[L] * this.t < 1000) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 24; ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(xf, yc - 52); ctx.lineTo(xf, yc + 52); ctx.stroke(); ctx.restore(); }
+          const done = this.arr[L] != null;
+          text(ctx, done ? 't = ' + this.arr[L].toFixed(2) + ' s' : (started ? 't = ' + Math.min(this.t, 1000 / sp[L]).toFixed(2) + ' s' : 'v = ' + (L === 0 ? sp[0].toFixed(0) : sp[L]) + ' m/s'), x1, yc - 34, { size: 24, color: done ? '#fff' : col, align: 'right', weight: 700 });
+          if (done) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 24; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x1 + 4, yc, 11, 0, TAU); ctx.fill(); ctx.restore(); }
+        } else {
+          for (let i = 0; i < 60; i++) { ctx.fillStyle = 'rgba(160,175,220,.18)'; ctx.beginPath(); ctx.arc(x0 + ((i * 97) % len), yc - 40 + ((i * 53) % 80), 1.5, 0, TAU); ctx.fill(); }
+          if (started) { const ph = (this.t * 3) % 1; ctx.strokeStyle = `rgba(160,175,220,${0.5 * (1 - ph)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(112, yc, 12 + 20 * ph, -1.2, 1.2); ctx.stroke(); }
+          text(ctx, 'zarralar yo‘q — tovush tarqalmaydi', (x0 + x1) / 2, yc + 8, { size: 26, color: '#9fb0dd', align: 'center', weight: 600 });
+          text(ctx, 'v = 0', x1, yc - 34, { size: 24, color: '#9fb0dd', align: 'right', weight: 700 });
+        }
+      }
+    }
+  };
+
+  /* =========================================================
+     19. TEST
+     ========================================================= */
+  Sims['s-quiz'] = {
+    Q: [
+      { q: '5 sekundda mayatnik 20 ta to‘liq tebranish qildi. Tebranish chastotasi qancha?', o: ['4 Hz', '0,25 Hz', '100 Hz', '20 Hz'], a: 0, ex: 'ν = N / t = 20 / 5 = 4 Hz, davr esa T = 1/ν = 0,25 s.' },
+      { q: 'Tebranish chastotasining SI dagi birligi qaysi?', o: ['Hertz (Hz)', 'Sekund (s)', 'Metr (m)', 'Radian (rad)'], a: 0, ex: '1 Hz — bir sekundda bitta to‘liq tebranish.' },
+      { q: 'Davri T = 0,5 s bo‘lgan tebranishning siklik chastotasi ω = 2π/T necha rad/s?', o: ['4π ≈ 12,6', 'π ≈ 3,14', '2π ≈ 6,28', '0,5π'], a: 0, ex: 'ω = 2π / 0,5 = 4π ≈ 12,6 rad/s.' },
+      { q: 'Matematik mayatnik uzunligi 4 marta oshirilsa, uning davri qanday o‘zgaradi?', o: ['2 marta ortadi', '4 marta ortadi', '2 marta kamayadi', 'O‘zgarmaydi'], a: 0, ex: 'T = 2π√(l/g): davr uzunlikning kvadrat ildiziga proporsional, √4 = 2.' },
+      { q: 'Rezonans qachon kuzatiladi?', o: ['Majburlovchi kuch chastotasi xususiy chastotaga yaqin bo‘lganda', 'Ishqalanish nolga teng bo‘lganda', 'Jism massasi kichik bo‘lganda', 'Amplituda juda kichik bo‘lganda'], a: 0, ex: 'Shunda sistema energiyani eng samarali oladi va amplituda keskin ortadi.' },
+      { q: 'So‘nuvchi tebranishlarda nima sodir bo‘ladi?', o: ['Amplituda kamayib boradi', 'Amplituda ortib boradi', 'Amplituda o‘zgarmaydi', 'Energiya ortib boradi'], a: 0, ex: 'Ishqalanish tufayli energiya sarflanadi, shuning uchun amplituda kichrayadi.' },
+      { q: 'Odam qulog‘i qabul qiladigan tovush chastotalari diapazoni qaysi?', o: ['20 Hz – 20 000 Hz', '1 Hz – 20 Hz', '20 kHz – 1 MHz', '0 – 100 Hz'], a: 0, ex: '20 Hz dan past — infratovush, 20 kHz dan yuqori — ultratovush.' },
+      { q: 'Tovush qaysi muhitda eng tez tarqaladi?', o: ['Po‘latda', 'Havoda', 'Suvda', 'Vakuumda'], a: 0, ex: 'Po‘latda ≈5000 m/s, suvda ≈1480 m/s, havoda ≈343 m/s. Vakuumda tovush tarqalmaydi.' },
+      { q: 'Skripka va fortepianoda bir xil balandlik va kuchlilikda chalingan tovushlarni nima farqlaydi?', o: ['Tembr (to‘lqin shakli)', 'Chastota', 'Amplituda', 'Tarqalish tezligi'], a: 0, ex: 'Tembrni garmonikalar (obertonlar) tarkibi, ya\'ni to‘lqin shakli belgilaydi.' }
+    ],
+    init() {
+      $('#q-next').onclick = () => this.next();
+      $('#q-restart').onclick = () => this.start();
+      this.start();
+    },
+    start() {
+      this.i = 0; this.score = 0; this.res = []; this.done = false;
+      $('#q-restart').style.display = 'none'; $('#q-grade').textContent = ''; this.show();
+    },
+    ring() { $('#q-arc').style.strokeDashoffset = 804 * (1 - this.score / this.Q.length); $('#q-score').textContent = this.score; },
+    dots() { $('#q-dots').innerHTML = this.Q.map((_, k) => `<i class="${this.res[k] === 1 ? 'ok' : this.res[k] === 0 ? 'no' : ''} ${k === this.i && !this.done ? 'cur' : ''}"></i>`).join(''); },
+    show() {
+      const Q = this.Q[this.i]; this.answered = false;
+      $('#q-no').textContent = `Savol ${this.i + 1} / ${this.Q.length}`; $('#q-text').textContent = Q.q; $('#q-fb').textContent = ''; $('#q-next').style.display = 'none';
+      const ord = Q.o.map((t, k) => ({ t, k })).sort(() => Math.random() - 0.5);
+      const box = $('#q-opts'); box.innerHTML = '';
+      ord.forEach((it, n) => {
+        const b = document.createElement('button'); b.innerHTML = `<b>${'ABCD'[n]}</b><span>${it.t}</span>`;
+        b.onclick = () => this.pick(b, it.k === Q.a);
+        b.dataset.ok = it.k === Q.a ? '1' : '0'; box.appendChild(b);
+      });
+      this.ring(); this.dots();
+    },
+    pick(btn, ok) {
+      if (this.answered) return; this.answered = true;
+      $$('#q-opts button').forEach(b => { b.disabled = true; if (b.dataset.ok === '1') b.classList.add('ok'); });
+      if (!ok) btn.classList.add('no'); else this.score++;
+      this.res[this.i] = ok ? 1 : 0;
+      const Q = this.Q[this.i]; $('#q-fb').innerHTML = (ok ? '<b style="color:#4ade80">To‘g‘ri!</b> ' : '<b style="color:#ff5d73">Noto‘g‘ri.</b> ') + Q.ex;
+      const last = this.i === this.Q.length - 1; const nb = $('#q-next'); nb.style.display = ''; nb.textContent = last ? 'Natijani ko‘rish' : 'Keyingi savol →';
+      this.ring(); this.dots();
+    },
+    next() {
+      if (this.i < this.Q.length - 1) { this.i++; this.show(); return; }
+      this.done = true; const s = this.score, n = this.Q.length;
+      $('#q-no').textContent = 'Natija'; $('#q-text').textContent = `${n} ta savoldan ${s} tasiga to‘g‘ri javob berdingiz.`;
+      $('#q-opts').innerHTML = ''; $('#q-next').style.display = 'none'; $('#q-restart').style.display = '';
+      const pct = s / n; $('#q-fb').textContent = pct >= 0.85 ? 'A\'lo natija! Siz tebranma harakatlarni yaxshi o‘zlashtirdingiz.' : pct >= 0.6 ? 'Yaxshi! Qiyin bo‘lgan mavzularni simulyatsiyalarda yana bir bor sinab ko‘ring.' : 'Slaydlarga qaytib, simulyatsiyalar bilan tajriba o‘tkazing va qayta urinib ko‘ring.';
+      $('#q-grade').textContent = `${Math.round(pct * 100)} %`; this.dots();
+    },
+    enter() { if (this.done) this.start(); }
+  };
+
+  /* =========================================================
+     20. XULOSA — 3D kub
+     ========================================================= */
+  Sims['s-end'] = {
+    init() {
+      this.rx = -22; this.ry = 20; this.drag = false; this.cube = $('#cube');
+      const sc = $('#scene'); let lx = 0, ly = 0;
+      sc.addEventListener('pointerdown', e => { this.drag = true; lx = e.clientX; ly = e.clientY; sc.setPointerCapture(e.pointerId); sc.style.cursor = 'grabbing'; });
+      sc.addEventListener('pointermove', e => { if (!this.drag) return; this.ry += (e.clientX - lx) * 0.5; this.rx = clamp(this.rx - (e.clientY - ly) * 0.5, -80, 80); lx = e.clientX; ly = e.clientY; });
+      const up = () => { this.drag = false; sc.style.cursor = 'grab'; }; sc.addEventListener('pointerup', up); sc.addEventListener('pointercancel', up);
+    },
+    frame(dt) {
+      if (!this.drag) { this.ry += dt * 22; this.rx += (-22 - this.rx) * Math.min(1, dt * 0.6); }
+      this.cube.style.transform = `rotateX(${this.rx.toFixed(2)}deg) rotateY(${this.ry.toFixed(2)}deg)`;
+    }
+  };
+})();
+
+</script>
+<script>window.addEventListener('load',function(){window.Deck.start();});</script>
+</body>
+</html>
